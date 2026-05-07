@@ -1,0 +1,101 @@
+pragma cashscript ^0.12.0;
+
+// =============================================================================
+// DutchAuctionSwapWithFee — Dutch Auction Intent with Frontend Monetization
+// =============================================================================
+//
+//   - Output 0: Pays the Maker (user) the decaying auction price
+//   - Output 1: Pays the Solver the sell tokens
+//   - Output 2: Pays the Frontend a fixed fee in the buyToken
+
+contract DutchAuctionSwapWithFee(
+    // Maker's public key hash
+    bytes20 makerPkh,
+    // Frontend's public key hash (recipient of the fee)
+    bytes20 feePkh,
+    // Token category of the sell token (bytes32, 0x for native BCH)
+    bytes sellTokenCategory,
+    // Token category of the buy token (bytes32, 0x for native BCH)
+    bytes buyTokenCategory,
+    // Amount of sell tokens locked in this covenant
+    int sellAmount,
+    // Dutch Auction: starting (maximum) buy price
+    int startBuyAmount,
+    // Dutch Auction: ending (minimum) buy price
+    int endBuyAmount,
+    // Fixed fee amount (paid in buyToken)
+    int feeAmount,
+    // Unix timestamp when auction starts
+    int startTime,
+    // Duration of the auction in seconds
+    int duration
+) {
+    // =========================================================================
+    // fill() — Resolver fills the order at the current Dutch Auction price
+    // =========================================================================
+    function fill(pubkey resolverPk, sig resolverSig) {
+        // Verify resolver's signature
+        require(checkSig(resolverSig, resolverPk));
+
+        // Prevent 3rd-party UTXO drain: requires maker, solver, and fee outputs
+        require(tx.inputs.length == 2);
+
+        // --- Dutch Auction Price Calculation ---
+        int currentTime = tx.locktime;
+        require(currentTime >= 500000000);
+        require(currentTime >= startTime);
+
+        int elapsed = currentTime - startTime;
+        int clampedElapsed = min(elapsed, duration);
+        int priceDrop = startBuyAmount - endBuyAmount;
+        int dropAmount = (priceDrop * clampedElapsed) / duration;
+        int currentPrice = startBuyAmount - dropAmount;
+
+        // --- Output 0: Maker ---
+        bytes25 makerLockingBytecode = new LockingBytecodeP2PKH(makerPkh);
+        require(tx.outputs[0].lockingBytecode == makerLockingBytecode);
+
+        if (buyTokenCategory == 0x) {
+            require(tx.outputs[0].value >= currentPrice);
+        } else {
+            require(tx.outputs[0].tokenCategory == buyTokenCategory);
+            require(tx.outputs[0].tokenAmount >= currentPrice);
+            require(tx.outputs[0].value >= 1000);
+        }
+
+        // --- Output 1: Resolver ---
+        bytes20 resolverPkh = hash160(resolverPk);
+        bytes25 resolverLockingBytecode = new LockingBytecodeP2PKH(resolverPkh);
+        require(tx.outputs[1].lockingBytecode == resolverLockingBytecode);
+
+        if (sellTokenCategory == 0x) {
+            require(tx.outputs[1].value >= sellAmount);
+        } else {
+            require(tx.outputs[1].tokenCategory == sellTokenCategory);
+            require(tx.outputs[1].tokenAmount >= sellAmount);
+        }
+
+        // --- Output 2: Frontend Fee ---
+        bytes25 feeLockingBytecode = new LockingBytecodeP2PKH(feePkh);
+        require(tx.outputs[2].lockingBytecode == feeLockingBytecode);
+
+        if (buyTokenCategory == 0x) {
+            require(tx.outputs[2].value >= feeAmount);
+        } else {
+            require(tx.outputs[2].tokenCategory == buyTokenCategory);
+            require(tx.outputs[2].tokenAmount >= feeAmount);
+            require(tx.outputs[2].value >= 1000);
+        }
+    }
+
+    // =========================================================================
+    // cancel() — Maker cancels the order and reclaims funds after auction ends
+    // =========================================================================
+    function cancel(pubkey makerPk, sig makerSig) {
+        require(hash160(makerPk) == makerPkh);
+        require(checkSig(makerSig, makerPk));
+
+        int endTime = startTime + duration;
+        require(tx.time >= endTime);
+    }
+}
