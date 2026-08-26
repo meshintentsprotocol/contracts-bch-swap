@@ -1,0 +1,78 @@
+pragma cashscript ^0.12.0;
+
+// =============================================================================
+// OracleStrategyCovenant — Dynamic Spot-Price Tracking Strategy for BCHMesh
+// =============================================================================
+
+contract OracleStrategyCovenant(
+    bytes20 ownerPkh,
+    pubkey oraclePk,
+    int pairId,
+    int spreadBps,
+    int feeBps,
+    bytes tokenCategoryIn,
+    bytes tokenCategoryOut
+) {
+    function fillWithOracle(int amountIn, bytes oracleMsg, datasig oracleSig) {
+        // 1. Verify Oracle signature over sha256 of payload
+        require(checkDataSig(oracleSig, sha256(oracleMsg), oraclePk));
+
+        // 2. Parse binary payload
+        bytes timeBytes = oracleMsg.split(4)[0];
+        bytes tail1 = oracleMsg.split(4)[1];
+        bytes pairBytes = tail1.split(4)[0];
+        bytes priceBytes = tail1.split(4)[1];
+
+        int timestamp = int(timeBytes);
+        int msgPairId = int(pairBytes);
+        int oraclePrice = int(priceBytes); // Price scaled by 1e8
+
+        // 3. Assert correct pair and freshness
+        require(msgPairId == pairId);
+        require(tx.time >= timestamp);
+
+        // 4. Validate payment token category if CashToken
+        if (tokenCategoryIn != 0x) {
+            require(tx.inputs[1].tokenCategory == tokenCategoryIn);
+        }
+
+        // 5. Compute effective price with spread
+        int effectivePrice = (oraclePrice * (10000 + spreadBps)) / 10000;
+
+        // 6. Read current reserve
+        int currentReserve = 0;
+        if (tokenCategoryOut == 0x) {
+            currentReserve = tx.inputs[this.activeInputIndex].value;
+        } else {
+            currentReserve = tx.inputs[this.activeInputIndex].tokenAmount;
+        }
+
+        // 7. Compute amountOut (scaled by 1e8)
+        int amountOut = (amountIn * 100000000 * (10000 - feeBps)) / (effectivePrice * 10000);
+
+        require(amountOut > 0);
+        require(amountOut <= currentReserve);
+
+        // 8. Output 0 recreation
+        require(tx.outputs[0].lockingBytecode == tx.inputs[this.activeInputIndex].lockingBytecode);
+        int remainingReserve = currentReserve - amountOut;
+
+        if (tokenCategoryOut == 0x) {
+            require(tx.outputs[0].value == remainingReserve);
+            require(tx.outputs[1].value >= amountOut);
+        } else {
+            require(tx.outputs[0].tokenCategory == tokenCategoryOut);
+            require(tx.outputs[0].tokenAmount == remainingReserve);
+            require(tx.outputs[0].value >= 1000);
+
+            require(tx.outputs[1].tokenCategory == tokenCategoryOut);
+            require(tx.outputs[1].tokenAmount >= amountOut);
+            require(tx.outputs[1].value >= 1000);
+        }
+    }
+
+    function dock(pubkey ownerPk, sig ownerSig) {
+        require(hash160(ownerPk) == ownerPkh);
+        require(checkSig(ownerSig, ownerPk));
+    }
+}
