@@ -1,0 +1,81 @@
+pragma cashscript ^0.12.0;
+
+// =============================================================================
+// MultiPairRecyclingCovenant — Multi-Token Accept & Auto-Recycling Strategy
+// =============================================================================
+//
+// Market Makers deploy this covenant to accept multiple token categories.
+// Upon fill, it atomically outputs a NEW Reverse Strategy UTXO (Output 1)
+// locked with the incoming payment tokens, continuously recycling capital.
+
+contract MultiPairRecyclingCovenant(
+    bytes20 ownerPkh,
+    bytes tokenCategoryOut,
+    bytes pUSDCategory,
+    int pUSDPriceNum,
+    int pUSDPriceDen,
+    bytes mUSDCategory,
+    int mUSDPriceNum,
+    int mUSDPriceDen,
+    int feeBps,
+    bytes32 reverseScriptHash
+) {
+    function fillAndRecycle(int amountIn, int tokenType) {
+        // 1. Determine pricing and category for selected token (1 = pUSD, 2 = mUSD)
+        int priceNum = pUSDPriceNum;
+        int priceDen = pUSDPriceDen;
+        bytes targetCategory = pUSDCategory;
+
+        if (tokenType == 2) {
+            priceNum = mUSDPriceNum;
+            priceDen = mUSDPriceDen;
+            targetCategory = mUSDCategory;
+        }
+
+        // 2. Read reserve
+        int currentReserve = 0;
+        if (tokenCategoryOut == 0x) {
+            currentReserve = tx.inputs[this.activeInputIndex].value;
+        } else {
+            currentReserve = tx.inputs[this.activeInputIndex].tokenAmount;
+        }
+
+        // 3. Compute amountOut
+        int amountOut = (amountIn * priceNum * (10000 - feeBps)) / (priceDen * 10000);
+        require(amountOut > 0);
+        require(amountOut <= currentReserve);
+
+        // 4. Output 0: Recreated Strategy with remaining reserve
+        require(tx.outputs[0].lockingBytecode == tx.inputs[this.activeInputIndex].lockingBytecode);
+        int remainingReserve = currentReserve - amountOut;
+
+        if (tokenCategoryOut == 0x) {
+            require(tx.outputs[0].value == remainingReserve);
+        } else {
+            require(tx.outputs[0].tokenCategory == tokenCategoryOut);
+            require(tx.outputs[0].tokenAmount == remainingReserve);
+            require(tx.outputs[0].value >= 1000);
+        }
+
+        // 5. Output 1: AUTO-SEEDED REVERSE STRATEGY UTXO
+        bytes reverseLockingBytecode = new LockingBytecodeP2SH32(reverseScriptHash);
+        require(tx.outputs[1].lockingBytecode == reverseLockingBytecode);
+        require(tx.outputs[1].tokenCategory == targetCategory);
+        require(tx.outputs[1].tokenAmount == amountIn);
+        require(tx.outputs[1].value >= 1000);
+
+        // 6. Output 2: Deliver amountOut to taker
+        if (tokenCategoryOut == 0x) {
+            require(tx.outputs[2].value >= amountOut);
+        } else {
+            require(tx.outputs[2].tokenCategory == tokenCategoryOut);
+            require(tx.outputs[2].tokenAmount >= amountOut);
+            require(tx.outputs[2].value >= 1000);
+        }
+    }
+
+    function dock(pubkey ownerPk, sig ownerSig) {
+        require(hash160(ownerPk) == ownerPkh);
+        require(checkSig(ownerSig, ownerPk));
+    }
+}
