@@ -18,6 +18,8 @@ These contracts use **Recursive Covenants** and **Introspection Opcodes**. Inste
 ### 1. Limit Orders (`Swap.cash`)
 Allows a user to lock assets (BCH or a specific CashToken) into a UTXO covenant. The covenant enforces a strict execution price. A Resolver can only spend this UTXO if the spending transaction simultaneously creates an output paying the User the exact requested amount.
 
+Limit Orders also support maker-initiated early cancellation (`cancelEarly()`) — the maker can reclaim their funds at any time, not just after expiry. See [`docs/limit-order-early-cancel.md`](docs/limit-order-early-cancel.md) for the design and security test coverage.
+
 ### 2. Dutch Auctions (`DutchAuction.cash`)
 
 Dutch Auctions require continuous state tracking (price vs time). Unlike Ethereum, Bitcoin Cash has no mutable storage. We use Recursive Covenants to track a decaying price curve.
@@ -69,9 +71,9 @@ Our test suite validates:
 
 ## Future-Proofing (2026 Upgrades)
 
-While the current MVP successfully utilizes 2023 Introspection to execute linear logic, building advanced DeFi requires iterative mathematics. The upcoming **2026 BCH VM Upgrades** introduce **Bounded Loops (`OP_BEGIN` / `OP_UNTIL`)**.
+While the current MVP successfully utilizes 2023 Introspection to execute linear logic, building advanced DeFi requires iterative mathematics. **Update (2026-07-04): the "Layla" network upgrade — which shipped Bounded Loops (`OP_BEGIN`/`OP_UNTIL`), Pay-to-Script, Functions (`OP_DEFINE`/`OP_INVOKE`), and Bitwise operations — activated 2026-05-15. This is no longer an "upcoming" upgrade; it's live on mainnet today.**
 
-Currently, Dutch Auction pricing is constrained to linear decay. The introduction of bounded loops will allow us to implement non-linear execution—such as advanced AMM models or exponential time-decay curves—directly on-chain using iterative approximations (like Taylor series) within these covenants.
+Currently, Dutch Auction pricing is still constrained to linear decay in the deployed contracts. Bounded loops (now available) would allow non-linear execution — such as advanced AMM models or exponential time-decay curves — directly on-chain using iterative approximations (like Taylor series) within these covenants. They're also the key enabling primitive for on-chain partial fills and TWAP tranching — see `cashtoken-relayer/docs/future/03-partial-order-fills.md` and `04-twap-orders.md` for concrete designs now that these opcodes are actually available.
 
 ---
 

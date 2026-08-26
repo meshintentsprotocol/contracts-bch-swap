@@ -4,11 +4,20 @@
   "description": "Same-chain BCH/CashToken intent swaps using Dutch Auction and Limit Order contracts",
   "type": "module",
   "scripts": {
-    "build": "npx cashc contracts/DutchAuctionSwap.cash -o artifacts/DutchAuctionSwap.json && npx cashc contracts/LimitOrderSwap.cash -o artifacts/LimitOrderSwap.json",
+    "build:mesh": "npx.cmd cashc@0.12.1 contracts/StrategyCovenant.cash -o artifacts/StrategyCovenant.json && npx.cmd cashc@0.12.1 contracts/OracleStrategyCovenant.cash -o artifacts/OracleStrategyCovenant.json && npx.cmd cashc@0.12.1 contracts/MultiPairRecyclingCovenant.cash -o artifacts/MultiPairRecyclingCovenant.json && npx.cmd cashc@0.12.1 contracts/DutchDecayStrategyCovenant.cash -o artifacts/DutchDecayStrategyCovenant.json",
+    "build": "npm run build:mesh && npx.cmd cashc@0.12.1 contracts/DutchAuctionSwap.cash -o artifacts/DutchAuctionSwap.json && npx.cmd cashc@0.12.1 contracts/LimitOrderSwap.cash -o artifacts/LimitOrderSwap.json && npx.cmd cashc@0.12.1 contracts/DutchAuctionSwapWithFee.cash -o artifacts/DutchAuctionSwapWithFee.json && npx.cmd cashc@0.12.1 contracts/LimitOrderSwapWithFee.json",
+    "test:mesh": "tsx test/StrategyCovenant.test.ts && tsx test/OracleStrategyCovenant.test.ts && tsx test/MultiPairRecyclingCovenant.test.ts && tsx test/DutchDecayStrategyCovenant.test.ts",
+    "e2e:mesh": "tsx test/e2e_strategy_covenant.ts",
     "test:e2e": "tsx test/e2e_dutch_auction.ts",
     "test": "tsx test/DutchAuctionSwap.test.ts",
     "test:limit": "tsx test/LimitOrderSwap.test.ts",
-    "test:all": "tsx test/DutchAuctionSwap.test.ts && tsx test/LimitOrderSwap.test.ts"
+    "test:all": "npm run test:mesh && tsx test/DutchAuctionSwap.test.ts && tsx test/LimitOrderSwap.test.ts",
+    "test:security:limit": "tsx test/LimitOrderSwap.security.test.ts",
+    "test:security:dutch": "tsx test/DutchAuctionSwap.security.test.ts",
+    "test:security:refund": "tsx test/Refund.security.test.ts",
+    "test:security:cancel-early": "tsx test/LimitOrderCancelEarly.security.test.ts",
+    "test:security:mesh": "tsx test/mesh_test/run_security_tests.ts",
+    "test:security": "tsx test/LimitOrderSwap.security.test.ts && tsx test/DutchAuctionSwap.security.test.ts && tsx test/Refund.security.test.ts && tsx test/LimitOrderCancelEarly.security.test.ts && tsx test/mesh_test/run_security_tests.ts"
   },
   "dependencies": {
     "@cashlab/cauldron": "^1.0.2",
