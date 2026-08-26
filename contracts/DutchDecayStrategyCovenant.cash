@@ -1,0 +1,70 @@
+pragma cashscript ^0.12.0;
+
+// =============================================================================
+// DutchDecayStrategyCovenant — Decaying Liquidity Auction Strategy for BCHMesh
+// =============================================================================
+
+contract DutchDecayStrategyCovenant(
+    bytes20 ownerPkh,
+    bytes tokenCategoryIn,
+    bytes tokenCategoryOut,
+    int startPriceNum,
+    int floorPriceNum,
+    int priceDen,
+    int startTime,
+    int duration,
+    int feeBps
+) {
+    function fillDutch(int amountIn) {
+        int currentTime = tx.locktime;
+        require(currentTime >= 500000000);
+        require(currentTime >= startTime);
+
+        // 1. Validate payment token category if CashToken
+        if (tokenCategoryIn != 0x) {
+            require(tx.inputs[1].tokenCategory == tokenCategoryIn);
+        }
+
+        // 2. Calculate decayed price numerator
+        int elapsed = currentTime - startTime;
+        int clampedElapsed = min(elapsed, duration);
+        int priceDrop = startPriceNum - floorPriceNum;
+        int dropAmount = (priceDrop * clampedElapsed) / duration;
+        int currentPriceNum = startPriceNum - dropAmount;
+
+        // 3. Read reserve
+        int currentReserve = 0;
+        if (tokenCategoryOut == 0x) {
+            currentReserve = tx.inputs[this.activeInputIndex].value;
+        } else {
+            currentReserve = tx.inputs[this.activeInputIndex].tokenAmount;
+        }
+
+        // 4. Calculate amountOut
+        int amountOut = (amountIn * currentPriceNum * (10000 - feeBps)) / (priceDen * 10000);
+        require(amountOut > 0);
+        require(amountOut <= currentReserve);
+
+        // 5. Output 0: Recreated covenant with remaining reserve
+        require(tx.outputs[0].lockingBytecode == tx.inputs[this.activeInputIndex].lockingBytecode);
+        int remainingReserve = currentReserve - amountOut;
+
+        if (tokenCategoryOut == 0x) {
+            require(tx.outputs[0].value == remainingReserve);
+            require(tx.outputs[1].value >= amountOut);
+        } else {
+            require(tx.outputs[0].tokenCategory == tokenCategoryOut);
+            require(tx.outputs[0].tokenAmount == remainingReserve);
+            require(tx.outputs[0].value >= 1000);
+
+            require(tx.outputs[1].tokenCategory == tokenCategoryOut);
+            require(tx.outputs[1].tokenAmount >= amountOut);
+            require(tx.outputs[1].value >= 1000);
+        }
+    }
+
+    function dock(pubkey ownerPk, sig ownerSig) {
+        require(hash160(ownerPk) == ownerPkh);
+        require(checkSig(ownerSig, ownerPk));
+    }
+}
