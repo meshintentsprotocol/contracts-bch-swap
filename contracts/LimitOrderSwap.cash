@@ -69,13 +69,53 @@ contract LimitOrderSwap(
     }
 
     // =========================================================================
-    // cancel() — Maker cancels and reclaims funds after expiry
+    // cancel() — Trustless refund: Anyone can trigger after expiry to refund maker
     // =========================================================================
-    function cancel(pubkey makerPk, sig makerSig) {
+    function cancel() {
+        // Can only cancel after expiry
+        require(tx.time >= expiryTime);
+
+        // Output 0: Must send locked funds back to the maker
+        bytes25 makerLockingBytecode = new LockingBytecodeP2PKH(makerPkh);
+        require(tx.outputs[0].lockingBytecode == makerLockingBytecode);
+
+        if (sellTokenCategory == 0x) {
+            require(tx.outputs[0].value >= sellAmount);
+        } else {
+            require(tx.outputs[0].tokenCategory == sellTokenCategory);
+            require(tx.outputs[0].tokenAmount >= sellAmount);
+        }
+    }
+
+    // =========================================================================
+    // cancelEarly() — Maker-authorized refund, available at ANY time
+    // =========================================================================
+    //
+    // cancel() above is intentionally permissionless (anyone can trigger it)
+    // but is gated on `tx.time >= expiryTime`, so the maker cannot reclaim
+    // their own funds before the order expires. cancelEarly() closes that gap:
+    // it requires the maker's own signature (proving consent) and has NO time
+    // constraint, so the maker can always back out of an unfilled order.
+    //
+    // Because only the maker holds the private key for makerPkh, no other
+    // party (resolver, relayer, or attacker) can invoke this branch. The
+    // output constraints mirror cancel() exactly — even though the maker is
+    // authorizing their own spend, the covenant still enforces that the funds
+    // land back at the maker's own address for exactly sellAmount, so a bug
+    // in a client (frontend) cannot misdirect or short-change the refund.
+    function cancelEarly(pubkey makerPk, sig makerSig) {
         require(hash160(makerPk) == makerPkh);
         require(checkSig(makerSig, makerPk));
 
-        // Can only cancel after expiry
-        require(tx.time >= expiryTime);
+        // Output 0: Must send locked funds back to the maker
+        bytes25 makerLockingBytecode = new LockingBytecodeP2PKH(makerPkh);
+        require(tx.outputs[0].lockingBytecode == makerLockingBytecode);
+
+        if (sellTokenCategory == 0x) {
+            require(tx.outputs[0].value >= sellAmount);
+        } else {
+            require(tx.outputs[0].tokenCategory == sellTokenCategory);
+            require(tx.outputs[0].tokenAmount >= sellAmount);
+        }
     }
 }

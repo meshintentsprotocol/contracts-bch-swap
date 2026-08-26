@@ -96,15 +96,22 @@ contract DutchAuctionSwap(
     }
 
     // =========================================================================
-    // cancel() — Maker cancels the order and reclaims funds after auction ends
+    // cancel() — Trustless refund: Anyone can trigger after auction ends to refund maker
     // =========================================================================
-    function cancel(pubkey makerPk, sig makerSig) {
-        // Verify it's the maker
-        require(hash160(makerPk) == makerPkh);
-        require(checkSig(makerSig, makerPk));
-
+    function cancel() {
         // Can only cancel after the auction duration has fully elapsed
         int endTime = startTime + duration;
         require(tx.time >= endTime);
+
+        // Output 0: Must send locked funds back to the maker
+        bytes25 makerLockingBytecode = new LockingBytecodeP2PKH(makerPkh);
+        require(tx.outputs[0].lockingBytecode == makerLockingBytecode);
+
+        if (sellTokenCategory == 0x) {
+            require(tx.outputs[0].value >= sellAmount);
+        } else {
+            require(tx.outputs[0].tokenCategory == sellTokenCategory);
+            require(tx.outputs[0].tokenAmount >= sellAmount);
+        }
     }
 }
