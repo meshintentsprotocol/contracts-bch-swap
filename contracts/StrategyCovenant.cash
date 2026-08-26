@@ -1,0 +1,58 @@
+pragma cashscript ^0.12.0;
+
+// =============================================================================
+// StrategyCovenant — Single-Asset / Fixed-Rate Liquidity Strategy for BCHMesh
+// =============================================================================
+
+contract StrategyCovenant(
+    bytes20 ownerPkh,
+    bytes tokenCategoryIn,
+    bytes tokenCategoryOut,
+    int priceNumerator,
+    int priceDenominator,
+    int feeBps
+) {
+    function fill(int amountIn) {
+        // 1. Validate taker payment token category if CashToken
+        if (tokenCategoryIn != 0x) {
+            require(tx.inputs[1].tokenCategory == tokenCategoryIn);
+        }
+
+        // 2. Read current reserve balance
+        int currentReserve = 0;
+        if (tokenCategoryOut == 0x) {
+            currentReserve = tx.inputs[this.activeInputIndex].value;
+        } else {
+            currentReserve = tx.inputs[this.activeInputIndex].tokenAmount;
+        }
+
+        // 3. Compute amountOut (maker-favorable: floor division)
+        int amountOut = (amountIn * priceNumerator * (10000 - feeBps)) / (priceDenominator * 10000);
+
+        require(amountOut > 0);
+        require(amountOut <= currentReserve);
+
+        // 4. Output 0 MUST recreate this exact covenant bytecode
+        require(tx.outputs[0].lockingBytecode == tx.inputs[this.activeInputIndex].lockingBytecode);
+
+        // 5. Output 0 reserve update
+        int remainingReserve = currentReserve - amountOut;
+        if (tokenCategoryOut == 0x) {
+            require(tx.outputs[0].value == remainingReserve);
+            require(tx.outputs[1].value >= amountOut);
+        } else {
+            require(tx.outputs[0].tokenCategory == tokenCategoryOut);
+            require(tx.outputs[0].tokenAmount == remainingReserve);
+            require(tx.outputs[0].value >= 1000);
+
+            require(tx.outputs[1].tokenCategory == tokenCategoryOut);
+            require(tx.outputs[1].tokenAmount >= amountOut);
+            require(tx.outputs[1].value >= 1000);
+        }
+    }
+
+    function dock(pubkey ownerPk, sig ownerSig) {
+        require(hash160(ownerPk) == ownerPkh);
+        require(checkSig(ownerSig, ownerPk));
+    }
+}
