@@ -1,0 +1,79 @@
+pragma cashscript ^0.12.0;
+
+// =============================================================================
+// StrategyCovenantV2 — Fixed-rate BCHMesh liquidity pool (payment-enforced)
+// =============================================================================
+//
+// One UTXO = one pool. The pool pairs BCH with ONE CashToken category and
+// trades in one direction: exactly one of tokenCategoryIn / tokenCategoryOut
+// is 0x (BCH).
+//
+//   tokenCategoryOut == 0x : pool GIVES BCH,   RECEIVES tokenCategoryIn tokens
+//   tokenCategoryIn  == 0x : pool GIVES tokens, RECEIVES BCH
+//
+// Differences from V1 (which could be drained, see PaymentBypass.poc.ts):
+//   1. No caller-supplied amountIn. The traded amounts are DERIVED from the
+//      pool's own input vs. its recreated output, so the pool is paid by
+//      construction: whatever leaves the pool must be matched by what arrives.
+//   2. The recreated pool must be the output at this.activeInputIndex. Each
+//      pool UTXO in a transaction therefore owns a distinct output, which rules
+//      out two pool inputs "sharing" one recreated output.
+//
+// Pricing (maker-favourable, integer):
+//   amountOut * priceDen * 10000 <= amountIn * priceNum * (10000 - feeBps)
+//
+// A pool can be traded against by anyone at the LP's price; that is the
+// intended behaviour of a resting fixed-rate order. The LP exits with dock().
+// =============================================================================
+
+contract StrategyCovenantV2(
+    bytes20 ownerPkh,
+    bytes tokenCategoryIn,
+    bytes tokenCategoryOut,
+    int priceNumerator,
+    int priceDenominator,
+    int feeBps
+) {
+    function fill() {
+        int i = this.activeInputIndex;
+
+        // The pool lives on at the output with the same index as its input.
+        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+
+        int amountIn = 0;
+        int amountOut = 0;
+
+        if (tokenCategoryOut == 0x) {
+            // Pool gives BCH, receives tokenCategoryIn.
+            // The pool input may not hold tokens yet (first fill).
+            int tokensBefore = 0;
+            if (tx.inputs[i].tokenCategory != 0x) {
+                require(tx.inputs[i].tokenCategory == tokenCategoryIn);
+                tokensBefore = tx.inputs[i].tokenAmount;
+            }
+            require(tx.outputs[i].tokenCategory == tokenCategoryIn);
+
+            amountIn = tx.outputs[i].tokenAmount - tokensBefore;
+            amountOut = tx.inputs[i].value - tx.outputs[i].value;
+            require(tx.outputs[i].value >= 1000);
+        } else {
+            // Pool gives tokenCategoryOut, receives BCH.
+            require(tokenCategoryIn == 0x);
+            require(tx.inputs[i].tokenCategory == tokenCategoryOut);
+            // Output must keep the category (so at least 1 token remains; the LP docks the rest).
+            require(tx.outputs[i].tokenCategory == tokenCategoryOut);
+
+            amountOut = tx.inputs[i].tokenAmount - tx.outputs[i].tokenAmount;
+            amountIn = tx.outputs[i].value - tx.inputs[i].value;
+        }
+
+        require(amountIn > 0);
+        require(amountOut > 0);
+        require(amountOut * priceDenominator * 10000 <= amountIn * priceNumerator * (10000 - feeBps));
+    }
+
+    function dock(pubkey ownerPk, sig ownerSig) {
+        require(hash160(ownerPk) == ownerPkh);
+        require(checkSig(ownerSig, ownerPk));
+    }
+}

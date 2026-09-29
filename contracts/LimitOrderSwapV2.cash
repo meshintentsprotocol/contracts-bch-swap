@@ -1,0 +1,79 @@
+pragma cashscript ^0.12.0;
+
+// =============================================================================
+// LimitOrderSwapV2 — Fixed-price intent, composable with liquidity pools
+// =============================================================================
+//
+// Constructor arguments are identical to LimitOrderSwap (V1) so clients can
+// rebuild the contract from the same order record.
+//
+// Differences from V1:
+//   - fill() needs no resolver signature and no fixed input count. The only
+//     thing the maker needs guaranteed is their payout, which must be the
+//     output at this.activeInputIndex. Any source may provide it: a BCHMesh
+//     pool, a Cauldron pool, or a solver's own funds, in the same transaction.
+//   - Payout is bound to the intent's own input index, so two intent UTXOs
+//     cannot be satisfied by a single payout output.
+//   - The sell asset is released to the transaction builder; the maker does
+//     not care where it goes once the payout is enforced.
+//
+// Exits:
+//   cancel()       permissionless after expiry, refunds to the maker (server auto-refund)
+//   cancelEarly()  maker-signed, any time
+// =============================================================================
+
+contract LimitOrderSwapV2(
+    bytes20 makerPkh,
+    bytes sellTokenCategory,
+    bytes buyTokenCategory,
+    int sellAmount,
+    int buyAmount,
+    int expiryTime
+) {
+    function fill() {
+        require(tx.locktime >= 500000000);
+        require(tx.locktime < expiryTime);
+
+        int i = this.activeInputIndex;
+
+        // The intent UTXO must hold the full order; an underfunded UTXO can only be refunded.
+        if (sellTokenCategory == 0x) {
+            require(tx.inputs[i].value >= sellAmount);
+        } else {
+            require(tx.inputs[i].tokenCategory == sellTokenCategory);
+            require(tx.inputs[i].tokenAmount >= sellAmount);
+        }
+        require(tx.outputs[i].lockingBytecode == new LockingBytecodeP2PKH(makerPkh));
+
+        if (buyTokenCategory == 0x) {
+            require(tx.outputs[i].value >= buyAmount);
+        } else {
+            require(tx.outputs[i].tokenCategory == buyTokenCategory);
+            require(tx.outputs[i].tokenAmount >= buyAmount);
+            require(tx.outputs[i].value >= 1000);
+        }
+    }
+
+    function cancel() {
+        require(tx.time >= expiryTime);
+        // Refund everything this UTXO holds (sats + tokens) to the maker, so any
+        // funding amount — exact, over or under — is recoverable in full.
+        int i = this.activeInputIndex;
+        require(tx.outputs[i].lockingBytecode == new LockingBytecodeP2PKH(makerPkh));
+        require(tx.outputs[i].value >= tx.inputs[i].value);
+        require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
+        require(tx.outputs[i].tokenAmount >= tx.inputs[i].tokenAmount);
+    }
+
+    function cancelEarly(pubkey makerPk, sig makerSig) {
+        require(hash160(makerPk) == makerPkh);
+        require(checkSig(makerSig, makerPk));
+        // Refund everything this UTXO holds (sats + tokens) to the maker, so any
+        // funding amount — exact, over or under — is recoverable in full.
+        int i = this.activeInputIndex;
+        require(tx.outputs[i].lockingBytecode == new LockingBytecodeP2PKH(makerPkh));
+        require(tx.outputs[i].value >= tx.inputs[i].value);
+        require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
+        require(tx.outputs[i].tokenAmount >= tx.inputs[i].tokenAmount);
+    }
+}
