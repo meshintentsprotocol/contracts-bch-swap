@@ -22,7 +22,8 @@
     "test:security": "tsx test/LimitOrderSwap.security.test.ts && tsx test/DutchAuctionSwap.security.test.ts && tsx test/Refund.security.test.ts && tsx test/LimitOrderCancelEarly.security.test.ts && tsx test/mesh_test/run_security_tests.ts && tsx test/mesh_test/V2.security.test.ts",
     "build:v2": "npx.cmd cashc@0.12.1 contracts/StrategyCovenantV2.cash -o artifacts/StrategyCovenantV2.json && npx.cmd cashc@0.12.1 contracts/LimitOrderSwapV2.cash -o artifacts/LimitOrderSwapV2.json && npx.cmd cashc@0.12.1 contracts/DutchAuctionSwapV2.cash -o artifacts/DutchAuctionSwapV2.json",
     "test:security:v2": "tsx test/mesh_test/V2.security.test.ts",
-    "test:poc:v1-drain": "tsx test/mesh_test/PaymentBypass.poc.ts"
+    "test:poc:v1-drain": "tsx test/mesh_test/PaymentBypass.poc.ts",
+    "test:security:live-pools": "tsx test/mesh_test/LivePools.security.test.ts"
   },
   "dependencies": {
     "@cashlab/cauldron": "^1.0.2",
