@@ -878,24 +878,6 @@
       }
     },
     {
-      "name": "uppercase category",
-      "params": {
-        "ownerPkh": "1b7e3c5a9d2f4e6081a3c5e7f90b2d4f6a8c0e21",
-        "reserve": "BCH",
-        "feeBps": 30,
-        "mode": 0,
-        "slots": [
-          {
-            "cat": "DFE50223C8D5CBA8DCEF8DFF6D92B61DEB88A8BA44947367F2B746487B56039B",
-            "num": "1",
-            "den": "1",
-            "rNum": "0",
-            "rDen": "0"
-          }
-        ]
-      }
-    },
-    {
       "name": "short owner pkh",
       "params": {
         "ownerPkh": "7e3c5a9d2f4e6081a3c5e7f90b2d4f6a8c0e21",

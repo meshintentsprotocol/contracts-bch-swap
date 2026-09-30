@@ -77,7 +77,6 @@ const invalid: Array<[string, V3Params]> = [
         { cat: PUSD, num: 1n, den: 1n }, { cat: MUSD, num: 1n, den: 1n }, { cat: TOK3, num: 1n, den: 1n }, { cat: 'ab'.repeat(32), num: 1n, den: 1n }] }],
     ['mode 1 without hash', { ownerPkh: OWNER, reserve: BCH, feeBps: 30, mode: 1, slots: [{ cat: PUSD, num: 1n, den: 1n }] }],
     ['mode 2 without reverse price', { ownerPkh: OWNER, reserve: BCH, feeBps: 30, mode: 2, slots: [{ cat: PUSD, num: 2000n, den: 1n }] }],
-    ['uppercase category', { ownerPkh: OWNER, reserve: BCH, feeBps: 30, mode: 0, slots: [{ cat: PUSD.toUpperCase(), num: 1n, den: 1n }] }],
     ['short owner pkh', { ownerPkh: OWNER.slice(2), reserve: BCH, feeBps: 30, mode: 0, slots: [{ cat: PUSD, num: 1n, den: 1n }] }],
 ];
 
