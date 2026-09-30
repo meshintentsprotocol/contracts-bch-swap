@@ -19,11 +19,12 @@
     "test:security:refund": "tsx test/Refund.security.test.ts",
     "test:security:cancel-early": "tsx test/LimitOrderCancelEarly.security.test.ts",
     "test:security:mesh": "tsx test/mesh_test/run_security_tests.ts",
-    "test:security": "tsx test/LimitOrderSwap.security.test.ts && tsx test/DutchAuctionSwap.security.test.ts && tsx test/Refund.security.test.ts && tsx test/LimitOrderCancelEarly.security.test.ts && tsx test/mesh_test/run_security_tests.ts && tsx test/mesh_test/V2.security.test.ts && tsx test/mesh_test/V3.security.test.ts",
+    "test:security": "tsx test/LimitOrderSwap.security.test.ts && tsx test/DutchAuctionSwap.security.test.ts && tsx test/Refund.security.test.ts && tsx test/LimitOrderCancelEarly.security.test.ts && tsx test/mesh_test/run_security_tests.ts && tsx test/mesh_test/V2.security.test.ts && tsx test/mesh_test/V3.security.test.ts && tsx test/mesh_test/V3.composition.test.ts",
     "build:v2": "npx.cmd cashc@0.12.1 contracts/StrategyCovenantV2.cash -o artifacts/StrategyCovenantV2.json && npx.cmd cashc@0.12.1 contracts/LimitOrderSwapV2.cash -o artifacts/LimitOrderSwapV2.json && npx.cmd cashc@0.12.1 contracts/DutchAuctionSwapV2.cash -o artifacts/DutchAuctionSwapV2.json",
     "build:v3": "npx.cmd cashc@0.12.1 contracts/MeshPoolV3.cash -o artifacts/MeshPoolV3.json",
     "test:security:v2": "tsx test/mesh_test/V2.security.test.ts",
     "test:security:v3": "tsx test/mesh_test/V3.security.test.ts",
+    "test:v3:composition": "tsx test/mesh_test/V3.composition.test.ts",
     "test:poc:v1-drain": "tsx test/mesh_test/PaymentBypass.poc.ts",
     "test:security:live-pools": "tsx test/mesh_test/LivePools.security.test.ts"
   },
