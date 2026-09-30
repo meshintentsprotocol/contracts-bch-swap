@@ -1,0 +1,150 @@
+pragma cashscript ^0.12.0;
+
+// =============================================================================
+// MeshPoolV3 — proceeds-routed, multi-asset liquidity pool
+// =============================================================================
+//
+// The pool UTXO holds only its RESERVE (BCH, or one fungible token). What it
+// receives never stays in the pool: it goes to a PROCEEDS output bound to the
+// pool's own input, so one reserve can face several assets and token↔token
+// pools are possible (a UTXO can carry only one token category).
+//
+//   i = this.activeInputIndex        reserve recreated at outputs[i]
+//   j = i + tx.inputs.length         proceeds at outputs[j]  (unique per input)
+//
+// Amounts are derived, never passed in:
+//   amountOut = reserve change inputs[i] → outputs[i]
+//   amountIn  = what outputs[j] carries (sats, or tokens of an accepted category)
+// The price is the slot whose asset actually arrived in outputs[j].
+//
+// Parameters are fixed-width pushes (no 1-byte values, which minimal-push rules
+// would turn into OP_N), so the redeem script's parameter prefix has constant
+// length. BCH is written as 32 zero bytes; token categories use the VM's byte
+// order. An unused slot repeats reserveCat, which can never be received.
+//
+// Proceeds destination (proceedsMode, little-endian bytes2):
+//   0  the owner's P2PKH
+//   1  a fixed P2SH32 (proceedsHash), e.g. a reverse pool (one-way recycling)
+//   2  mirror: the reverse pool of the matched slot, rebuilt at run time from
+//      this pool's own bytecode (closed-loop recycling, no hash cycle):
+//        reserve = received asset; slot 0 = (this reserve, rNum_k, rDen_k,
+//        num_k, den_k); unused slots; same owner and fee; mode 2; hash 0.
+//      The mirror of that pool is this pool again when this pool is a
+//      single-slot mirror pool with canonical unused slots and a zero hash.
+//
+// Redeem script = constructor-arg pushes (last arg first) + template body.
+// Every push has a fixed size, so the prefix is always 300 bytes:
+//   hash 33 + mode 3 + fee 3 + 3 slots × (4 × 9 + 33) + reserve 33 + owner 21.
+//
+// dock(): owner signature, no output rules (withdraw, reprice, rebalance).
+// =============================================================================
+
+contract MeshPoolV3(
+    bytes20 ownerPkh,
+    bytes32 reserveCat,
+    bytes32 cat0, bytes8 num0, bytes8 den0, bytes8 rNum0, bytes8 rDen0,
+    bytes32 cat1, bytes8 num1, bytes8 den1, bytes8 rNum1, bytes8 rDen1,
+    bytes32 cat2, bytes8 num2, bytes8 den2, bytes8 rNum2, bytes8 rDen2,
+    bytes2 feeBps,
+    bytes2 proceedsMode,
+    bytes32 proceedsHash
+) {
+    function fill() {
+        bytes32 bch = 0x0000000000000000000000000000000000000000000000000000000000000000;
+        int i = this.activeInputIndex;
+        int j = i + tx.inputs.length;
+
+        // ── Reserve: recreated at the pool's own index, same bytecode ─────────
+        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+        int amountOut = 0;
+        if (reserveCat == bch) {
+            // Pure BCH reserve: no token may enter or stay in the pool UTXO.
+            require(tx.inputs[i].tokenCategory == 0x);
+            require(tx.outputs[i].tokenCategory == 0x);
+            require(tx.outputs[i].value >= 1000);
+            amountOut = tx.inputs[i].value - tx.outputs[i].value;
+        } else {
+            require(tx.inputs[i].tokenCategory == reserveCat);
+            require(tx.outputs[i].tokenCategory == reserveCat);
+            // The carrier sats of a token reserve can't be taken.
+            require(tx.outputs[i].value >= tx.inputs[i].value);
+            amountOut = tx.inputs[i].tokenAmount - tx.outputs[i].tokenAmount;
+        }
+
+        // ── Proceeds: the received asset, at outputs[j] ────────────────────
+        bytes received = bch;
+        int amountIn = 0;
+        bytes proceedsCat = tx.outputs[j].tokenCategory;
+        if (proceedsCat == 0x) {
+            amountIn = tx.outputs[j].value;
+        } else {
+            // Fungible only: an NFT category carries a capability byte (33 bytes).
+            require(proceedsCat.length == 32);
+            received = proceedsCat;
+            amountIn = tx.outputs[j].tokenAmount;
+        }
+        require(received != reserveCat);
+
+        // Price of the slot whose asset arrived (kept as raw bytes for mirror mode).
+        bytes n = num0;
+        bytes d = den0;
+        bytes rn = rNum0;
+        bytes rd = rDen0;
+        if (received == cat0) {
+            n = num0;
+        } else if (received == cat1) {
+            n = num1;
+            d = den1;
+            rn = rNum1;
+            rd = rDen1;
+        } else {
+            require(received == cat2);
+            n = num2;
+            d = den2;
+            rn = rNum2;
+            rd = rDen2;
+        }
+        int num = int(n);
+        int den = int(d);
+
+        // ── Destination of the proceeds ─────────────────────────────────────
+        int mode = int(proceedsMode);
+        if (mode == 0) {
+            require(tx.outputs[j].lockingBytecode == new LockingBytecodeP2PKH(ownerPkh));
+        } else if (mode == 1) {
+            require(tx.outputs[j].lockingBytecode == new LockingBytecodeP2SH32(proceedsHash));
+        } else {
+            require(mode == 2);
+            require(int(rn) > 0);
+            require(int(rd) > 0);
+            // Unused slot of the reverse pool: its reserve category and zero prices
+            // (pushed last-arg-first: rDen, rNum, den, num, cat).
+            bytes zero8 = 0x0000000000000000;
+            bytes unusedSlot = 0x08 + zero8 + 0x08 + zero8 + 0x08 + zero8 + 0x08 + zero8 + 0x20 + received;
+            bytes reversePrefix = 0x20 + bch                                     // proceedsHash = 0
+                + 0x020200                                                      // proceedsMode = 2
+                + 0x02 + feeBps                                                 // same fee
+                + unusedSlot + unusedSlot                                       // slots 2, 1
+                + 0x08 + d + 0x08 + n + 0x08 + rd + 0x08 + rn + 0x20 + reserveCat // slot 0
+                + 0x20 + received                                               // reserveCat
+                + 0x14 + ownerPkh;                                              // ownerPkh
+            bytes body = this.activeBytecode.split(300)[1];
+            require(tx.outputs[j].lockingBytecode == new LockingBytecodeP2SH32(hash256(reversePrefix + body)));
+        }
+
+        // ── Price ───────────────────────────────────────────────────────────
+        int fee = int(feeBps);
+        require(fee >= 0);
+        require(fee < 10000);
+        require(num > 0);
+        require(den > 0);
+        require(amountIn > 0);
+        require(amountOut > 0);
+        require(amountOut * den * 10000 <= amountIn * num * (10000 - fee));
+    }
+
+    function dock(pubkey ownerPk, sig ownerSig) {
+        require(hash160(ownerPk) == ownerPkh);
+        require(checkSig(ownerSig, ownerPk));
+    }
+}
