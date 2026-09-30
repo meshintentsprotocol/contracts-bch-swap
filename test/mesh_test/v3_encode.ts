@@ -36,6 +36,31 @@ export function le(v: bigint | number, bytes: number): string {
     return out;
 }
 
+/**
+ * Rules a pool must meet to be fillable and safe to fund. The covenant only
+ * enforces some of them at fill time; a pool that breaks the others would lock
+ * the LP's funds until dock() (e.g. a mode-2 slot without a reverse price).
+ */
+export function validateV3(p: V3Params): void {
+    const fail = (m: string) => { throw new Error(`invalid V3 pool: ${m}`); };
+    const isCat = (c: string) => c === BCH || /^[0-9a-f]{64}$/.test(c);
+    if (!/^[0-9a-f]{40}$/.test(hex(p.ownerPkh))) fail('ownerPkh must be 20 bytes');
+    if (!isCat(p.reserve)) fail('reserve must be BCH or a 64-hex category');
+    if (p.slots.length < 1 || p.slots.length > 3) fail('1..3 slots');
+    if (!Number.isInteger(p.feeBps) || p.feeBps < 0 || p.feeBps >= 10000) fail('feeBps must be 0..9999');
+    const seen = new Set<string>();
+    p.slots.forEach((s, k) => {
+        if (!isCat(s.cat)) fail(`slot ${k}: category must be BCH or 64-hex`);
+        if (s.cat === p.reserve) fail(`slot ${k}: accepts the reserve asset`);
+        if (seen.has(s.cat)) fail(`slot ${k}: duplicate category`);
+        seen.add(s.cat);
+        if (s.num <= 0n || s.den <= 0n) fail(`slot ${k}: num and den must be > 0`);
+        if (p.mode === 2 && ((s.rNum ?? 0n) <= 0n || (s.rDen ?? 0n) <= 0n)) fail(`slot ${k}: mirror mode needs rNum and rDen > 0`);
+    });
+    if (p.mode === 1 && !/^[0-9a-f]{64}$/.test(p.proceedsHash ?? '')) fail('mode 1 needs a 32-byte proceedsHash');
+    if (p.mode !== 1 && p.proceedsHash && !/^0{64}$/.test(p.proceedsHash)) fail('proceedsHash is only used in mode 1');
+}
+
 export function v3Args(p: V3Params): string[] {
     if (p.slots.length < 1 || p.slots.length > 3) throw new Error('1..3 slots');
     const args = ['0x' + hex(p.ownerPkh), '0x' + catVm(p.reserve)];

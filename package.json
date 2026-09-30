@@ -26,6 +26,7 @@
     "test:security:v3": "tsx test/mesh_test/V3.security.test.ts",
     "test:v3:composition": "tsx test/mesh_test/V3.composition.test.ts",
     "test:v3:mirror": "tsx test/mesh_test/V3.mirror.test.ts",
+    "gen:v3-vectors": "tsx tools/gen-v3-vectors.ts",
     "test:poc:v1-drain": "tsx test/mesh_test/PaymentBypass.poc.ts",
     "test:security:live-pools": "tsx test/mesh_test/LivePools.security.test.ts"
   },
