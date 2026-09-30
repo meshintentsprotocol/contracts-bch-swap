@@ -78,7 +78,9 @@ contract MeshPoolV3(
         if (proceedsCat == 0x) {
             amountIn = tx.outputs[j].value;
         } else {
-            // Fungible only: an NFT category carries a capability byte (33 bytes).
+            // A mutable or minting NFT adds a capability byte (33 bytes) and is
+            // refused. An immutable NFT is invisible to introspection; it can only
+            // ride along as an extra, since the price uses the fungible amount.
             require(proceedsCat.length == 32);
             received = proceedsCat;
             amountIn = tx.outputs[j].tokenAmount;
