@@ -1,0 +1,2 @@
+# Registry files are committed to on chain by sha256: never touch their bytes.
+*.json -text

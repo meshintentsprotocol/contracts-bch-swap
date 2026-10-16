@@ -1,0 +1,106 @@
+{
+  "$schema": "https://cashtokens.org/bcmr-v2.schema.json",
+  "version": {
+    "major": 1,
+    "minor": 0,
+    "patch": 0
+  },
+  "latestRevision": "2026-10-16T12:21:06.076Z",
+  "registryIdentity": {
+    "name": "Mesh V4 positions",
+    "description": "Position NFTs of the Mesh V4 liquidity protocol on Bitcoin Cash."
+  },
+  "identities": {
+    "9b9b2ed979b07141b47c2c7c6bbeb2970022dd0f19739f1831643c9da10ad130": {
+      "2026-10-16T12:21:06.076Z": {
+        "name": "Mesh V4 test position BCH/pUSD",
+        "description": "Chipnet test of a Mesh V4 position NFT: three BCH bins on the 1% grid around 2,000 sats per pUSD unit. Whoever holds this NFT controls the bins.",
+        "token": {
+          "category": "9b9b2ed979b07141b47c2c7c6bbeb2970022dd0f19739f1831643c9da10ad130",
+          "symbol": "MESHPOS",
+          "decimals": 0,
+          "nfts": {
+            "description": "Mesh V4 position NFT",
+            "fields": {
+              "flags": {
+                "name": "Flags",
+                "description": "Bits 0–2 shape (0 spot, 1 curve, 2 bid-ask, 3 custom); bits 3–5 bin variant.",
+                "encoding": {
+                  "type": "binary"
+                }
+              },
+              "tokenCategory": {
+                "name": "Token",
+                "description": "The token this position trades against BCH.",
+                "encoding": {
+                  "type": "hex"
+                }
+              },
+              "binStepBps": {
+                "name": "Bin step (bps)",
+                "description": "Distance between price levels, in basis points.",
+                "encoding": {
+                  "type": "number"
+                }
+              },
+              "lowIndex": {
+                "name": "Low level",
+                "description": "Grid index of the lowest bin.",
+                "encoding": {
+                  "type": "number"
+                }
+              },
+              "highIndex": {
+                "name": "High level",
+                "description": "Grid index of the highest bin.",
+                "encoding": {
+                  "type": "number"
+                }
+              },
+              "binCount": {
+                "name": "Bins",
+                "description": "Number of bins this NFT owns.",
+                "encoding": {
+                  "type": "number"
+                }
+              },
+              "managerHash": {
+                "name": "Manager",
+                "description": "Script hash of the position manager; zero when none.",
+                "encoding": {
+                  "type": "hex"
+                }
+              },
+              "createdHeight": {
+                "name": "Created",
+                "description": "Block height at creation.",
+                "encoding": {
+                  "type": "locktime"
+                }
+              }
+            },
+            "parse": {
+              "bytecode": "00cf517f7c6b517f7c6b01207f7c6b527f7c816b547f7c816b547f7c816b527f7c816b01207f7c6b816b",
+              "types": {
+                "01": {
+                  "name": "Mesh position (v1)",
+                  "description": "Bins on the Mesh price grid, owned by this NFT.",
+                  "fields": [
+                    "flags",
+                    "tokenCategory",
+                    "binStepBps",
+                    "lowIndex",
+                    "highIndex",
+                    "binCount",
+                    "managerHash",
+                    "createdHeight"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

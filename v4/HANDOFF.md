@@ -41,11 +41,7 @@ Updated 2026-10-16 (end of the phase 0 + phase 1 session). Read this first in a 
    - **D2: slim bins first.** The user briefly chose P2S first, then switched back after the safety review.
    - The rest: NFT-only ownership (D3), keeper rules in the manager (D4, V4b), no recovery (D6), `manageAfter` (D10); the oracle band is decided at phase 6 (D5).
    - P2S + validator stays a possible V4a.1 "fine-bin mode".
-2. **Phase 2: finish the live check.** Code, rules, BCMR and vectors are done (`test/position.ts`, `docs/PositionNft.md`, 78 checks). What's left needs the user:
-   - run `npx tsx tools/chipnet-position-genesis.ts genesis --broadcast` (dry run passes against chipnet; FUNDER_WIF from meshserver/.env), with `--to <their chipnet wallet token address>`;
-   - for named display, `--bcmr-url https://…` plus uploading `data/chipnet/<date>/bcmr-registry.json` to that URL;
-   - check the NFT in Paytaca or Cashonize;
-   - then `withdraw --broadcast` (only if the NFT stayed with the funder) for a live owner-path test.
+2. **Phase 2 is done (2026-10-16).** Position 9b9b2ed9… minted on chipnet (genesis 1a64e4fc…) with BCMR metadata at https://mesh-metadata.vercel.app/bcmr/<category>.json (static Vercel project `v4/mesh-metadata`); Paytaca's chipnet indexer resolves it; `tools/resolve-position-metadata.ts` checks it from chain. Left: the user confirms the NFT shows in their wallet (bchtest:zpmnrn7s…); see docs/PositionNft.md §4–5.
 3. **Phase 3: server V4a** in meshserver: port `v4_encode.ts` and `position.ts` with both vector files (L3 parity in jest), register positions with `checkGenesis`, index bins by `ownerCat`, add V4 legs to the router and executor, and add `scripts/check-v4-fills.ts` (V1–V8). A manage transaction can't also fill intents (height vs time locktime).
 4. Phase 6 later: turn the S3 draft into `PositionManagerV4`. Consume the price list as it loops (its cost is quadratic now), use `gridPrice` for the K bound, and add tests M1–M10.
 

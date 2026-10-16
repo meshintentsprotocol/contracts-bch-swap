@@ -52,13 +52,47 @@ Nothing on chain reads it: bins check only the category. It's for wallets, index
 
 The suite runs the BCMR parsing transaction in the 2026 VM, exactly as the spec defines it for wallets, and checks every field, including negative grid indexes. A malformed commitment fails to parse rather than showing wrong values.
 
+### 4.1 How wallets find the metadata (researched 2026-10-16)
+
+BCH token metadata is **BCMR** (CHIP-BCMR v2). There's no other standard in use, and the alternatives (e.g. the Short Metadata Protocol CHIP) are proposals. Wallets resolve a category like this:
+
+1. **Authbase:** the transaction whose txid *is* the category. For a position, that's the seed transaction that genesis input 0 spends.
+2. **Authchain:** follow each transaction's **output 0** to the transaction that spends it. The last one, whose output 0 is unspent, is the **authhead**.
+3. **Publication:** `OP_RETURN 'BCMR' <sha256> <uri…>`, at most one per transaction (the first matching output counts).
+   - A URI with no protocol means https; a bare domain means `/.well-known/bitcoin-cash-metadata-registry.json`; `ipfs://` is supported.
+   - The client downloads the file and **checks its sha256 against the exact bytes served**.
+4. **Which publication counts:**
+   - The spec reads it from the authhead.
+   - mainnet-js (`BCMR.buildAuthChain`, used by Cashonize) collects every publication along the chain and uses the latest one.
+   - Paytaca's indexer (`bcmr.paytaca.com`, chipnet: `bcmr-chipnet.paytaca.com`) indexes authchains and serves `/api/tokens/<category>/` and `/api/authchain/<category>/head/`.
+
+### 4.2 What Mesh does
+
+- **Identity output at index 0.** The genesis puts 800 sats for Mesh's metadata key at output 0 and the position NFT at output 1. The genesis therefore stays the authhead, which satisfies every resolver above, and only Mesh can publish new metadata, by spending output 0 with a new publication.
+  - If the NFT were at output 0, every transfer of the position would become a link in the authchain, and the holder would control the metadata.
+  - `checkGenesis` allows any NFT index, since third-party positions may differ; Mesh-built positions use this layout.
+- **One immutable file per position:** `https://mesh-metadata.vercel.app/bcmr/<category>.json`.
+  - It's a static Vercel project (`v4/mesh-metadata/`), separate from the app so releases can't touch it. It serves JSON with CORS.
+  - A published file is **never edited**: its hash is on chain. New metadata means a new file and a new publication.
+  - `.gitattributes` stops Git changing line endings, which would change the hash.
+- **The publication is checked before broadcasting:** the script fetches the hosted URL and refuses to send unless its sha256 matches the hash in the genesis.
+
 **Publishing:** for wallets to find the registry, the genesis carries `OP_RETURN 'BCMR' <sha256(registry bytes)> <URL without https://>`, from `bcmrPublicationChunks()`. The file must be served at that URL byte for byte.
 
-## 5. Chipnet
+## 5. Chipnet (done 2026-10-16)
 
-`tools/chipnet-position-genesis.ts` mints a test position (an NFT and three BCH bins on the 1 % grid around 2,000 sats per pUSD unit).
-- It is a dry run by default: it builds both transactions (a seed self-send to make an output #0, then the genesis), checks each with the VM and `checkGenesis`, and writes `data/chipnet/<date>/` (state + registry).
-- `--broadcast` sends; `--to <token address>` sends the NFT to a wallet; `--bcmr-url` publishes the registry.
-- `withdraw` mode spends the bins back through the owner path with the NFT: a live owner-path test.
+`tools/chipnet-position-genesis.ts`:
+- `plan` builds the seed and genesis, checks both (VM + `checkGenesis`), and saves the raw transactions and the registry. `--bcmr-url` accepts a `{category}` placeholder.
+- `broadcast` re-checks that the seed coin is unspent and that the hosted hash matches, then sends the saved transactions unchanged.
+- `withdraw` spends the bins back through the owner path (only when the funder holds the NFT).
 
-The dry run against chipnet passes: genesis 468 B, VM ✓, `checkGenesis` ✓.
+`tools/resolve-position-metadata.ts` resolves the metadata from the chain the way a wallet does and checks every step.
+
+**Live position:**
+
+| | |
+|---|---|
+| Category (= seed txid) | `9b9b2ed979b07141b47c2c7c6bbeb2970022dd0f19739f1831643c9da10ad130` |
+| Genesis | [`1a64e4fc…6b81`](https://chipnet.imaginary.cash/tx/1a64e4fc8faaec5512ba03b183beac9c407c9c308f9865d98551824ccdd56b81) (617 B): identity output 0, NFT output 1 to the user's wallet, 3 bins, BCMR publication |
+| Registry | https://mesh-metadata.vercel.app/bcmr/9b9b2ed979b07141b47c2c7c6bbeb2970022dd0f19739f1831643c9da10ad130.json (sha256 `6beafbb5…0adc`) |
+| Resolution | `resolve-position-metadata.ts` passes every step. Paytaca's chipnet indexer returns the name, the NFT parse definition, and the genesis as authchain head |
