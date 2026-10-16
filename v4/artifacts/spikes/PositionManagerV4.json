@@ -1,0 +1,81 @@
+{
+  "contractName": "PositionManagerV4",
+  "constructorInputs": [
+    { "name": "binBody", "type": "bytes" },
+    { "name": "keeperPkh", "type": "bytes20" },
+    { "name": "feeCap", "type": "bytes8" },
+    { "name": "floorNum", "type": "bytes8" },
+    { "name": "floorDen", "type": "bytes8" },
+    { "name": "ceilNum", "type": "bytes8" },
+    { "name": "ceilDen", "type": "bytes8" }
+  ],
+  "abi": [
+    {
+      "name": "manage",
+      "inputs": [
+        { "name": "shared", "type": "bytes" },
+        { "name": "pricesIn", "type": "bytes" },
+        { "name": "pricesOut", "type": "bytes" },
+        { "name": "keeperPk", "type": "pubkey" },
+        { "name": "keeperSig", "type": "sig" }
+      ]
+    }
+  ],
+  "bytecode": "5878587f757e587e78587f77587f757e587e78607f77587f757e587e7c01187f777e OP_0 OP_DEFINE OP_INPUTINDEX OP_0 OP_NUMEQUALVERIFY OP_10 OP_PICK OP_HASH160 OP_ROT OP_EQUALVERIFY OP_10 OP_ROLL OP_10 OP_ROLL OP_CHECKSIGVERIFY OP_6 OP_PICK OP_SIZE OP_NIP 42 OP_NUMEQUALVERIFY OP_6 OP_PICK 20 OP_SPLIT OP_DROP OP_7 OP_PICK 40 OP_SPLIT OP_NIP OP_2 OP_SWAP OP_CAT 20 OP_CAT OP_ACTIVEBYTECODE OP_HASH256 OP_CAT 20 OP_CAT OP_8 OP_ROLL 20 OP_SPLIT OP_NIP 20 OP_SPLIT OP_DROP OP_CAT 20 OP_2 OP_PICK OP_CAT OP_3 OP_ROLL OP_CAT OP_8 OP_PICK OP_SIZE OP_NIP 20 OP_MOD OP_0 OP_NUMEQUALVERIFY OP_8 OP_PICK OP_SIZE OP_NIP 20 OP_DIV OP_DUP OP_1 OP_GREATERTHANOREQUAL OP_VERIFY OP_0 OP_0 OP_0 OP_BEGIN OP_DUP OP_4 OP_PICK OP_LESSTHAN OP_DUP OP_TOALTSTACK OP_IF OP_12 OP_PICK OP_OVER 20 OP_MUL OP_SPLIT OP_NIP 20 OP_SPLIT OP_DROP OP_OVER OP_1ADD OP_UTXOBYTECODE aa20 OP_8 OP_PICK OP_3 OP_PICK OP_0 OP_INVOKE OP_CAT OP_8 OP_PICK OP_CAT OP_HASH256 OP_CAT 87 OP_CAT OP_EQUALVERIFY OP_OVER OP_1ADD OP_UTXOTOKENCATEGORY OP_DUP OP_9 OP_PICK OP_EQUAL OP_OVER OP_0 OP_EQUAL OP_BOOLOR OP_VERIFY OP_4 OP_PICK OP_3 OP_PICK OP_1ADD OP_UTXOVALUE OP_ADD OP_5 OP_ROLL OP_DROP OP_SWAP OP_TOALTSTACK OP_SWAP OP_2SWAP OP_ROT OP_FROMALTSTACK OP_2OVER OP_1ADD OP_UTXOTOKENAMOUNT OP_ADD OP_4 OP_ROLL OP_DROP OP_SWAP OP_2SWAP OP_ROT OP_ROT OP_1ADD OP_NIP OP_NIP OP_ENDIF OP_FROMALTSTACK OP_NOT OP_UNTIL OP_DROP OP_ROT OP_1ADD OP_BEGIN OP_DUP OP_TXINPUTCOUNT OP_LESSTHAN OP_DUP OP_TOALTSTACK OP_IF OP_DUP OP_UTXOBYTECODE OP_SIZE 19 OP_NUMEQUALVERIFY OP_DUP OP_3 OP_SPLIT OP_DROP 76a914 OP_EQUALVERIFY OP_SWAP OP_1ADD OP_NIP OP_ENDIF OP_FROMALTSTACK OP_NOT OP_UNTIL OP_12 OP_PICK OP_SIZE OP_NIP 20 OP_MOD OP_0 OP_NUMEQUALVERIFY OP_12 OP_PICK OP_SIZE OP_NIP 20 OP_DIV OP_DUP OP_1 OP_GREATERTHANOREQUAL OP_VERIFY OP_0 OP_0 OP_10 OP_ROLL OP_BIN2NUM OP_11 OP_ROLL OP_BIN2NUM OP_12 OP_ROLL OP_BIN2NUM OP_13 OP_ROLL OP_BIN2NUM OP_0 OP_BEGIN OP_DUP OP_8 OP_PICK OP_LESSTHAN OP_DUP OP_TOALTSTACK OP_IF OP_16 OP_PICK OP_OVER 20 OP_MUL OP_SPLIT OP_NIP 20 OP_SPLIT OP_DROP OP_OVER OP_OUTPUTBYTECODE aa20 OP_15 OP_PICK OP_3 OP_PICK OP_0 OP_INVOKE OP_CAT OP_15 OP_PICK OP_CAT OP_HASH256 OP_CAT 87 OP_CAT OP_EQUALVERIFY OP_OVER OP_OUTPUTTOKENCATEGORY OP_DUP OP_16 OP_PICK OP_EQUAL OP_OVER OP_0 OP_EQUAL OP_BOOLOR OP_VERIFY OP_2 OP_PICK OP_OUTPUTTOKENCOMMITMENT OP_0 OP_EQUALVERIFY OP_2 OP_PICK OP_OUTPUTVALUE e803 OP_GREATERTHANOREQUAL OP_VERIFY OP_8 OP_PICK OP_3 OP_PICK OP_OUTPUTVALUE OP_ADD OP_9 OP_ROLL OP_DROP OP_SWAP OP_TOALTSTACK OP_SWAP OP_TOALTSTACK OP_SWAP OP_TOALTSTACK OP_SWAP OP_TOALTSTACK OP_SWAP OP_TOALTSTACK OP_SWAP OP_2SWAP OP_ROT OP_FROMALTSTACK OP_FROMALTSTACK OP_FROMALTSTACK OP_FROMALTSTACK OP_FROMALTSTACK OP_7 OP_PICK OP_3 OP_PICK OP_OUTPUTTOKENAMOUNT OP_ADD OP_8 OP_ROLL OP_DROP OP_SWAP OP_TOALTSTACK OP_SWAP OP_TOALTSTACK OP_SWAP OP_TOALTSTACK OP_SWAP OP_TOALTSTACK OP_SWAP OP_2SWAP OP_ROT OP_FROMALTSTACK OP_FROMALTSTACK OP_FROMALTSTACK OP_FROMALTSTACK OP_OVER OP_8 OP_SPLIT OP_DROP OP_BIN2NUM OP_2 OP_PICK OP_8 OP_SPLIT OP_NIP OP_8 OP_SPLIT OP_DROP OP_BIN2NUM OP_3 OP_PICK OP_16 OP_SPLIT OP_NIP OP_8 OP_SPLIT OP_DROP OP_BIN2NUM OP_4 OP_PICK 18 OP_SPLIT OP_NIP OP_BIN2NUM OP_3 OP_PICK OP_0 OP_GREATERTHAN OP_VERIFY OP_OVER OP_0 OP_GREATERTHAN OP_VERIFY OP_DUP OP_0 OP_GREATERTHAN OP_VERIFY OP_2 OP_PICK OP_2 OP_PICK OP_MUL OP_OVER OP_5 OP_PICK OP_MUL OP_GREATERTHANOREQUAL OP_VERIFY OP_DUP OP_10 OP_PICK OP_MUL OP_11 OP_PICK OP_3 OP_PICK OP_MUL OP_GREATERTHANOREQUAL OP_VERIFY OP_2 OP_PICK OP_8 OP_PICK OP_MUL OP_9 OP_PICK OP_5 OP_PICK OP_MUL OP_LESSTHANOREQUAL OP_VERIFY OP_6 OP_ROLL OP_1ADD OP_SWAP OP_TOALTSTACK OP_SWAP OP_TOALTSTACK OP_SWAP OP_TOALTSTACK OP_SWAP OP_2SWAP OP_ROT OP_FROMALTSTACK OP_FROMALTSTACK OP_FROMALTSTACK OP_2DROP OP_2DROP OP_2DROP OP_ENDIF OP_FROMALTSTACK OP_NOT OP_UNTIL OP_DROP OP_5 OP_ROLL OP_9 OP_ROLL OP_13 OP_ROLL OP_BIN2NUM OP_SUB OP_GREATERTHANOREQUAL OP_VERIFY OP_4 OP_ROLL OP_7 OP_ROLL OP_GREATERTHANOREQUAL OP_VERIFY OP_2DROP OP_2DROP OP_2DROP OP_2DROP OP_2DROP OP_DROP OP_1",
+  "source": "pragma cashscript ^0.14.0;\n\n// Spike S3: PositionManagerV4 draft. Runs at input 0 of a manage transaction\n// and loops over the position's bins.\n//\n// Keeper rules live in this contract's own parameters, so a bin's managerHash\n// (hash256 of this redeem script) commits to them: changing the keeper or its\n// limits means the owner moves the bins to a new manager. No config UTXO, no\n// extra bytes per bin (decision D4, option \"manager parameters\").\n//\n// Unlocking data (keeper-supplied, all checked):\n//   shared    = tokenCat 32 ‖ ownerCat 32 ‖ cooldown 2   (same for every bin)\n//   pricesIn  = n × (askDen ‖ askNum ‖ bidDen ‖ bidNum), 8 B each: bins at inputs 1..n\n//   pricesOut = m × the same: new bins at outputs 0..m-1\n// Each listed bin is identified by rebuilding P2SH32(hash256(prefix ‖ binBody))\n// with managerHash = hash256(this.activeBytecode). Every other input must be\n// P2PKH, so no unlisted bin (P2SH) can be spent through manage().\n\n// The four price pushes of a bin's parameter prefix (askDen first: last argument first).\nfunction pricePushes(bytes rec) returns (bytes) {\n    return 0x08 + rec.split(8)[0] + 0x08 + rec.split(8)[1].split(8)[0]\n         + 0x08 + rec.split(16)[1].split(8)[0] + 0x08 + rec.split(24)[1];\n}\n\ncontract PositionManagerV4(\n    bytes binBody,\n    bytes20 keeperPkh,\n    bytes8 feeCap,\n    bytes8 floorNum, bytes8 floorDen,\n    bytes8 ceilNum, bytes8 ceilDen\n) {\n    function manage(bytes shared, bytes pricesIn, bytes pricesOut, pubkey keeperPk, sig keeperSig) {\n        require(this.activeInputIndex == 0);\n        require(hash160(keeperPk) == keeperPkh);\n        require(checkSig(keeperSig, keeperPk));\n\n        require(shared.length == 66);\n        bytes tokenCat = shared.split(32)[0];\n        bytes cooldown = shared.split(64)[1];\n        bytes head = 0x02 + cooldown + 0x20 + hash256(this.activeBytecode) + 0x20 + shared.split(32)[1].split(32)[0];\n        bytes tail = 0x20 + tokenCat + binBody;\n\n        // ── Bins in: inputs 1..n ────────────────────────────────────────────\n        require(pricesIn.length % 32 == 0);\n        int n = pricesIn.length / 32;\n        require(n >= 1);\n        int satsIn = 0;\n        int tokIn = 0;\n        for (int k = 0; k < n; k++) {\n            bytes rec = pricesIn.split(k * 32)[1].split(32)[0];\n            require(tx.inputs[k + 1].lockingBytecode == new LockingBytecodeP2SH32(hash256(head + pricePushes(rec) + tail)));\n            bytes cIn = tx.inputs[k + 1].tokenCategory;\n            require(cIn == tokenCat || cIn == 0x);\n            satsIn = satsIn + tx.inputs[k + 1].value;\n            tokIn = tokIn + tx.inputs[k + 1].tokenAmount;\n        }\n\n        // ── Every other input is P2PKH (fees): no unlisted bin rides along ────\n        for (int k = n + 1; k < tx.inputs.length; k++) {\n            bytes lb = tx.inputs[k].lockingBytecode;\n            require(lb.length == 25);\n            require(lb.split(3)[0] == 0x76a914);\n        }\n\n        // ── Bins out: outputs 0..m-1, same position, prices within bounds ────\n        require(pricesOut.length % 32 == 0);\n        int m = pricesOut.length / 32;\n        require(m >= 1);\n        int satsOut = 0;\n        int tokOut = 0;\n        int fN = int(floorNum);\n        int fD = int(floorDen);\n        int cN = int(ceilNum);\n        int cD = int(ceilDen);\n        for (int j = 0; j < m; j++) {\n            bytes rec = pricesOut.split(j * 32)[1].split(32)[0];\n            require(tx.outputs[j].lockingBytecode == new LockingBytecodeP2SH32(hash256(head + pricePushes(rec) + tail)));\n            bytes cOut = tx.outputs[j].tokenCategory;\n            require(cOut == tokenCat || cOut == 0x);\n            require(tx.outputs[j].nftCommitment == 0x);\n            require(tx.outputs[j].value >= 1000);\n            satsOut = satsOut + tx.outputs[j].value;\n            tokOut = tokOut + tx.outputs[j].tokenAmount;\n\n            int aD = int(rec.split(8)[0]);\n            int aN = int(rec.split(8)[1].split(8)[0]);\n            int bD = int(rec.split(16)[1].split(8)[0]);\n            int bN = int(rec.split(24)[1]);\n            require(aD > 0);\n            require(bD > 0);\n            require(bN > 0);\n            require(aN * bD >= bN * aD);        // ask ≥ bid\n            require(bN * fD >= fN * bD);        // bid ≥ floor\n            require(aN * cD <= cN * aD);        // ask ≤ ceiling\n        }\n\n        // ── Conservation over the listed bins ───────────────────────────────\n        require(satsOut >= satsIn - int(feeCap));\n        require(tokOut >= tokIn);\n    }\n}\n",
+  "fingerprint": "fe0b8216f54a4ad45c792346f0f1f07f1f02915aa6d4b19dc534535f00ecb426",
+  "debug": {
+    "bytecode": "225878587f757e587e78587f77587f757e587e78607f77587f757e587e7c01187f777e0089c0009d5a79a97b885a7a5a7aad5679827701429d567901207f75577901407f77527c7e01207ec1aa7e01207e587a01207f7701207f757e012052797e537a7e58798277012097009d587982770120967651a269000000657654799f766b635c79780120957f7701207f75788bc702aa2058795379008a7e58797eaa7e01877e88788bce765979877800879b69547953798bc693557a757c6b7c727b6c708bd093547a757c727b7b8b7777686c9166757b8b6576c39f766b6376c78201199d76537f750376a914887c8b77686c91665c798277012097009d5c7982770120967651a26900005a7a815b7a815c7a815d7a8100657658799f766b636079780120957f7701207f7578cd02aa205f795379008a7e5f797eaa7e01877e8878d1766079877800879b695279d200885279cc02e803a26958795379cc93597a757c6b7c6b7c6b7c6b7c6b7c727b6c6c6c6c6c57795379d393587a757c6b7c6b7c6b7c6b7c727b6c6c6c6c78587f75815279587f77587f75815379607f77587f7581547901187f7781537900a0697800a0697600a069527952799578557995a269765a79955b79537995a26952795879955979557995a169567a8b7c6b7c6b7c6b7c727b6c6c6c6d6d6d686c916675557a597a5d7a8194a269547a577aa2696d6d6d6d6d7551",
+    "sourceMap": "20::23:1;;::::1;33:16:33:37:0;:41::42;:8::44:1;34:24:34:32:0;;:16::33:1;:37::46:0;:8::48:1;35:25:35:34:0;;:36::44;;:8::47:1;37:16:37:22:0;;:::29:1;;:33::35:0;:8::37:1;38:25:38:31:0;;:38::40;:25::41:1;:::44;39::39:31:0;;:38::40;:25::41:1;:::44;40:21:40:25:0;:28::36;:21:::1;:39::43:0;:21:::1;:54::73:0;:46::74:1;:21;:77::81:0;:21:::1;:84::90:0;;:97::99;:84::100:1;:::103;:110::112:0;:84::113:1;:::116;:21;41::41:25:0;:28::36;;:21:::1;:39::46:0;;:21:::1;44:16:44:24:0;;:::31:1;;:34::36:0;:16:::1;:40::41:0;:8::43:1;45:16:45:24:0;;:::31:1;;:34::36:0;:16:::1;46::46:17:0;:21::22;:16:::1;:8::24;47:21:47:22:0;48:20:48:21;49:21:49:22;:8:56:9;:24:49:25;:28::29;;:24:::1;;;:36:56:9:0;50:24:50:32;;:39::40;:43::45;:39:::1;:24::46;:::49;:56::58:0;:24::59:1;:::62;51:30:51:31:0;:::35:1;:20::52;:56::122:0;:90::94;;:109::112;;:97::113:1;;:90;:116::120:0;;:90:::1;:82::121;:56::122;;;:12::124;52:34:52:35:0;:::39:1;:24::54;53:20:53:23:0;:27::35;;:20:::1;:39::42:0;:46::48;:39:::1;:20;:12::50;54:21:54:27:0;;:40::41;;:::45:1;:30::52;:21;:12::53;;;;;;;;;55:20:55:39:0;:38::43:1;:28::56;:20;:12::57;;;;;;49:31:49:34;;::56:9;;:36;;:8;;;59:21:59:22:0;:::26:1;:8:63:9:0;:28:59:29;:32::48;:28:::1;;;:55:63:9:0;60:33:60:34;:23::51:1;61:20:61:29;:33::35:0;:12::37:1;62:20:62:22:0;:29::30;:20::31:1;:::34;:38::46:0;:12::48:1;59:50:59:53;;::63:9;:55;;:8;;66:16:66:25:0;;:::32:1;;:35::37:0;:16:::1;:41::42:0;:8::44:1;67:16:67:25:0;;:::32:1;;:35::37:0;:16:::1;68::68:17:0;:21::22;:16:::1;:8::24;69:22:69:23:0;70:21:70:22;71::71:29;;:17::30:1;72:21:72:29:0;;:17::30:1;73:21:73:28:0;;:17::29:1;74:21:74:28:0;;:17::29:1;75:21:75:22:0;:8:95:9;:24:75:25;:28::29;;:24:::1;;;:36:95:9:0;76:24:76:33;;:40::41;:44::46;:40:::1;:24::47;:::50;:57::59:0;:24::60:1;:::63;77:31:77:32:0;:20::49:1;:53::119:0;:87::91;;:106::109;;:94::110:1;;:87;:113::117:0;;:87:::1;:79::118;:53::119;;;:12::121;78:36:78:37:0;:25::52:1;79:20:79:24:0;:28::36;;:20:::1;:40::44:0;:48::50;:40:::1;:20;:12::52;80:31:80:32:0;;:20::47:1;:51::53:0;:12::55:1;81:31:81:32:0;;:20::39:1;:43::47:0;:20:::1;:12::49;82:22:82:29:0;;:43::44;;:32::51:1;:22;:12::52;;;;;;;;;;;;;;;;;;;;;83:21:83:27:0;;:41::42;;:30::55:1;:21;:12::56;;;;;;;;;;;;;;;;;;85:25:85:28:0;:35::36;:25::37:1;:::40;:21::41;86:25:86:28:0;;:35::36;:25::37:1;:::40;:47::48:0;:25::49:1;:::52;:21::53;87:25:87:28:0;;:35::37;:25::38:1;:::41;:48::49:0;:25::50:1;:::53;:21::54;88:25:88:28:0;;:35::37;:25::38:1;:::41;:21::42;89:20:89:22:0;;:25::26;:20:::1;:12::28;90:20:90:22:0;:25::26;:20:::1;:12::28;91:20:91:22:0;:25::26;:20:::1;:12::28;92:20:92:22:0;;:25::27;;:20:::1;:31::33:0;:36::38;;:31:::1;:20;:12::40;93:20:93:22:0;:25::27;;:20:::1;:31::33:0;;:36::38;;:31:::1;:20;:12::40;94:20:94:22:0;;:25::27;;:20:::1;:31::33:0;;:36::38;;:31:::1;:20;:12::40;75:31:75:34;;;;;;;;;;;;;;;:36:95:9;;;;;:8;;;98:16:98:23:0;;:27::33;;:40::46;;:36::47:1;:27;:16;:8::49;99:16:99:22:0;;:26::31;;:16:::1;:8::33;32:99:100:5;;;;;;",
+    "logs": [],
+    "requires": [
+      { "ip": 12, "line": 33 },
+      { "ip": 17, "line": 34 },
+      { "ip": 22, "line": 35 },
+      { "ip": 28, "line": 37 },
+      { "ip": 72, "line": 44 },
+      { "ip": 82, "line": 46 },
+      { "ip": 122, "line": 51 },
+      { "ip": 134, "line": 53 },
+      { "ip": 183, "line": 61 },
+      { "ip": 189, "line": 62 },
+      { "ip": 204, "line": 66 },
+      { "ip": 214, "line": 68 },
+      { "ip": 265, "line": 77 },
+      { "ip": 276, "line": 79 },
+      { "ip": 281, "line": 80 },
+      { "ip": 287, "line": 81 },
+      { "ip": 372, "line": 89 },
+      { "ip": 376, "line": 90 },
+      { "ip": 380, "line": 91 },
+      { "ip": 391, "line": 92 },
+      { "ip": 402, "line": 93 },
+      { "ip": 414, "line": 94 },
+      { "ip": 447, "line": 98 },
+      { "ip": 453, "line": 99 }
+    ],
+    "sourceTags": "154:156:fu;157:157:sc;158:161:lc;162:162:sc;183:185:fu;186:189:lc;408:422:fu;423:425:sc;426:429:lc;430:430:sc",
+    "functions": [
+      {
+        "id": 0,
+        "name": "pricePushes",
+        "inputs": [
+          { "name": "rec", "type": "bytes" }
+        ],
+        "bytecode": "5878587f757e587e78587f77587f757e587e78607f77587f757e587e7c01187f777e",
+        "sourceMap": "21:11:21:15;:18::21;:28::29;:18::30:1;:::33;:11;:36::40:0;:11:::1;:43::46:0;:53::54;:43::55:1;:::58;:65::66:0;:43::67:1;:::70;:11;22::22:15:0;21::::1;22:18::21:0;:28::30;:18::31:1;:::34;:41::42:0;:18::43:1;:::46;21:11;22:49::53:0;21:11:::1;22:56::59:0;:66::68;:56::69:1;:::72;21:11",
+        "logs": [],
+        "requires": []
+      }
+    ]
+  },
+  "compiler": {
+    "name": "cashc",
+    "version": "0.14.0",
+    "options": {
+      "enforceFunctionParameterTypes": true,
+      "enforceLocktimeGuard": true
+    }
+  },
+  "updatedAt": "2026-10-16T10:20:21.419Z"
+}

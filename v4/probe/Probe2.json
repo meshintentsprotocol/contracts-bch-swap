@@ -1,0 +1,51 @@
+{
+  "contractName": "Probe2",
+  "constructorInputs": [
+    { "name": "bidNum", "type": "int" },
+    { "name": "bidDen", "type": "int" },
+    { "name": "askNum", "type": "int" },
+    { "name": "askDen", "type": "int" }
+  ],
+  "abi": [
+    { "name": "spend", "inputs": [] }
+  ],
+  "bytecode": "7600a069537a957b7b959300a269 OP_0 OP_DEFINE OP_INPUTINDEX OP_DUP OP_OUTPUTTOKENAMOUNT OP_OVER OP_UTXOTOKENAMOUNT OP_SUB OP_OVER OP_OUTPUTVALUE OP_2 OP_PICK OP_UTXOVALUE OP_SUB OP_OVER OP_0 OP_LESSTHAN OP_IF OP_2DUP OP_SWAP OP_7 OP_PICK OP_9 OP_PICK OP_0 OP_INVOKE OP_ELSE OP_2DUP OP_SWAP OP_5 OP_PICK OP_7 OP_PICK OP_0 OP_INVOKE OP_ENDIF OP_TXOUTPUTCOUNT OP_3 OP_ROLL OP_GREATERTHAN OP_VERIFY OP_2DROP OP_2DROP OP_2DROP OP_1",
+  "source": "pragma cashscript ^0.14.0;\n\n// Toolchain probe: a helper called twice (expect OP_DEFINE once, OP_INVOKE twice).\nfunction priceOk(int ds, int dt, int num, int den) {\n    require(den > 0);\n    require(ds * den + dt * num >= 0);\n}\n\ncontract Probe2(int bidNum, int bidDen, int askNum, int askDen) {\n    function spend() {\n        int i = this.activeInputIndex;\n        int dt = tx.outputs[i].tokenAmount - tx.inputs[i].tokenAmount;\n        int ds = tx.outputs[i].value - tx.inputs[i].value;\n        if (dt < 0) {\n            priceOk(ds, dt, askNum, askDen);\n        } else {\n            priceOk(ds, dt, bidNum, bidDen);\n        }\n        require(tx.outputs.length > i);\n    }\n}\n",
+  "fingerprint": "2b6f618d644013e1ec43b7c24b59be993c7378156d21601d4d6932cca8d45299",
+  "debug": {
+    "bytecode": "0e7600a069537a957b7b959300a2690089c076d378d09478cc5279c69478009f636e7c57795979008a676e7c55795779008a68c4537aa0696d6d6d51",
+    "sourceMap": "4::7:1;;::::1;11:16:11:37:0;12:28:12:29;:17::42:1;:55::56:0;:45::69:1;:17;13:28:13:29:0;:17::36:1;:49::50:0;;:39::57:1;:17;14:12:14:14:0;:17::18;:12:::1;:20:16:9:0;15::15:26;;:28::34;;:36::42;;:12::43:1;;16:15:18:9:0;17:20:17:26;;:28::34;;:36::42;;:12::43:1;;16:15:18:9;19:16:19:33:0;:36::37;;:16:::1;:8::39;10:21:20:5;;;",
+    "logs": [],
+    "requires": [
+      { "ip": 45, "line": 19 }
+    ],
+    "functions": [
+      {
+        "id": 0,
+        "name": "priceOk",
+        "inputs": [
+          { "name": "ds", "type": "int" },
+          { "name": "dt", "type": "int" },
+          { "name": "num", "type": "int" },
+          { "name": "den", "type": "int" }
+        ],
+        "bytecode": "7600a069537a957b7b959300a269",
+        "sourceMap": "5:12:5:15;:18::19;:12:::1;:4::21;6:12:6:14:0;;:::20:1;:23::25:0;:28::31;:23:::1;:12;:35::36:0;:12:::1;:4::38",
+        "logs": [],
+        "requires": [
+          { "ip": 3, "line": 5 },
+          { "ip": 13, "line": 6 }
+        ]
+      }
+    ]
+  },
+  "compiler": {
+    "name": "cashc",
+    "version": "0.14.0",
+    "options": {
+      "enforceFunctionParameterTypes": true,
+      "enforceLocktimeGuard": true
+    }
+  },
+  "updatedAt": "2026-10-16T10:09:17.506Z"
+}

@@ -1,0 +1,43 @@
+{
+  "managerRedeemBytes": 742,
+  "byN": {
+    "1": {
+      "size": 1627,
+      "opCost": 128910,
+      "maxOpCost": 815200,
+      "unlocking": 978
+    },
+    "4": {
+      "size": 3084,
+      "opCost": 255516,
+      "maxOpCost": 970400,
+      "unlocking": 1172
+    },
+    "8": {
+      "size": 5026,
+      "opCost": 428844,
+      "maxOpCost": 1176800,
+      "unlocking": 1430
+    },
+    "16": {
+      "size": 8906,
+      "opCost": 790860,
+      "maxOpCost": 1586400,
+      "unlocking": 1942
+    },
+    "32": {
+      "size": 16666,
+      "opCost": 1576332,
+      "maxOpCost": 2405600,
+      "unlocking": 2966
+    },
+    "64": {
+      "size": 32186,
+      "opCost": 3393036,
+      "maxOpCost": 4044000,
+      "unlocking": 5014
+    }
+  },
+  "maxBinsPerCall": 102,
+  "limitAtNext": "Unable to verify transaction: error in evaluating input index 0: Program attempted an operation that would exceed the operation cost density limit. Maximum operation cost: 6040800 (density control len"
+}

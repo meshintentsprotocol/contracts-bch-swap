@@ -1,0 +1,44 @@
+{
+  "contractName": "MeshBinP2S",
+  "constructorInputs": [
+    { "name": "tokenCat", "type": "bytes32" },
+    { "name": "bidNum", "type": "bytes8" },
+    { "name": "bidDen", "type": "bytes8" },
+    { "name": "askNum", "type": "bytes8" },
+    { "name": "askDen", "type": "bytes8" },
+    { "name": "ownerCat", "type": "bytes32" },
+    { "name": "validatorHash", "type": "bytes32" }
+  ],
+  "abi": [
+    { "name": "fill", "inputs": [] },
+    {
+      "name": "owner",
+      "inputs": [
+        { "name": "k", "type": "int" }
+      ]
+    }
+  ],
+  "bytecode": "OP_2DROP OP_2DROP OP_DROP OP_2 OP_PICK OP_0 OP_NUMEQUAL OP_IF OP_0 OP_UTXOBYTECODE aa20 OP_3 OP_ROLL OP_CAT 87 OP_CAT OP_EQUAL OP_NIP OP_NIP OP_ELSE OP_ROT OP_1 OP_NUMEQUALVERIFY OP_2 OP_PICK OP_UTXOTOKENCATEGORY 20 OP_SPLIT OP_DROP OP_EQUALVERIFY OP_SWAP OP_UTXOTOKENCOMMITMENT OP_SIZE OP_NIP OP_0 OP_GREATERTHAN OP_NIP OP_ENDIF",
+  "source": "pragma cashscript ^0.14.0;\n\n// Spike S2: a bin small enough to be a standard P2S locking script (≤ 201 B).\n// It carries its parameters in the output itself and checks nothing about the\n// fill: input 0 must be the validator (BinValidatorV4), which loops over every\n// input matching this template and enforces the price rules for each.\n//\n// Locking script = pushes (last parameter first) + body. Offsets of the fields\n// inside it are fixed, so the validator reads them without parsing:\n//   [1,33) validatorHash  [34,66) ownerCat  [67,75) askDen  [76,84) askNum\n//   [85,93) bidDen  [94,102) bidNum  [103,135) tokenCat   then the body.\ncontract MeshBinP2S(\n    bytes32 tokenCat,\n    bytes8 bidNum, bytes8 bidDen,\n    bytes8 askNum, bytes8 askDen,\n    bytes32 ownerCat,\n    bytes32 validatorHash\n) {\n    function fill() {\n        require(tx.inputs[0].lockingBytecode == new LockingBytecodeP2SH32(validatorHash));\n    }\n\n    function owner(int k) {\n        require(tx.inputs[k].tokenCategory.split(32)[0] == ownerCat);\n        require(tx.inputs[k].nftCommitment.length > 0);\n    }\n}\n",
+  "fingerprint": "ea0757b26f8790f021bebf2d3b76591b3f420165a2fb89172a4534b5719f006a",
+  "debug": {
+    "bytecode": "6d6d755279009c6300c702aa20537a7e01877e877777677b519d5279ce01207f75887ccf827700a07768",
+    "sourceMap": "13:4:14:17;14:19:15;15:::32;19:4:21:5;;;;;20:26:20:27;:16::44:1;:48::88:0;:74::87;;:48::88:1;;;:8::90;19:20:21:5;;:4;23::26::0;;;24:26:24:27;;:16::42:1;:49::51:0;:16::52:1;:::55;:8::69;25:26:25:27:0;:16::42:1;:::49;;:52::53:0;:8::55:1;23:26:26:5;12:0:27:1",
+    "logs": [],
+    "requires": [
+      { "ip": 24, "line": 20 },
+      { "ip": 36, "line": 24 },
+      { "ip": 43, "line": 25 }
+    ],
+    "sourceTags": "17:18:sc;36:36:sc"
+  },
+  "compiler": {
+    "name": "cashc",
+    "version": "0.14.0",
+    "options": {
+      "enforceFunctionParameterTypes": true,
+      "enforceLocktimeGuard": true
+    }
+  },
+  "updatedAt": "2026-10-16T10:20:19.774Z"
+}

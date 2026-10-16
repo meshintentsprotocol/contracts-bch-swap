@@ -1,0 +1,29 @@
+pragma cashscript ^0.14.0;
+
+// The V4 price grid, computed on chain. Level `index` of step `step` (bps):
+//
+//   price(step, index) = r^index   in Q64 fixed point (sats per token unit × 2^64)
+//   r = floor(2^64 · (10000 + step) / 10000)          for index ≥ 0
+//   r = floor(2^64 · 10000 / (10000 + step)), |index|  for index < 0
+//
+// Exponentiation by squaring, flooring after every multiply (>> 64). The order
+// of operations is part of the definition: the server's mirror (grid.ts) does
+// exactly the same steps, so both get the same integer.
+function gridPrice(int step, int index) returns (int) {
+    int one = 1 << 64;
+    int base = one * (10000 + step) / 10000;
+    int e = index;
+    if (index < 0) {
+        base = one * 10000 / (10000 + step);
+        e = 0 - index;
+    }
+    int result = one;
+    while (e > 0) {
+        if (e % 2 == 1) {
+            result = (result * base) >> 64;
+        }
+        base = (base * base) >> 64;
+        e = e >> 1;
+    }
+    return result;
+}

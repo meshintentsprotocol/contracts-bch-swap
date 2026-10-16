@@ -4,9 +4,12 @@
   "type": "module",
   "description": "Mesh V4 covenants (MeshBinV4, PositionManagerV4) on CashScript 0.14 and the BCH 2026 VM. Isolated from the V3 contracts, which stay on cashc 0.12.1.",
   "scripts": {
-    "build": "cashc contracts/MeshBinV4.cash -o artifacts/MeshBinV4.json && cashc contracts/PositionManagerV4.cash -o artifacts/PositionManagerV4.json",
+    "build": "npm run build:bin && npm run build:spikes && npm run build:fixtures",
     "build:bin": "cashc contracts/MeshBinV4.cash -o artifacts/MeshBinV4.json",
-    "test": "tsx test/run_all.ts"
+    "build:spikes": "cashc contracts/spikes/MeshBinP2S.cash -o artifacts/spikes/MeshBinP2S.json && cashc contracts/spikes/BinValidatorV4.cash -o artifacts/spikes/BinValidatorV4.json && cashc contracts/spikes/PositionManagerV4.cash -o artifacts/spikes/PositionManagerV4.json && cashc contracts/spikes/GridProbe.cash -o artifacts/spikes/GridProbe.json && cashc contracts/spikes/MeshBinV4Grid.cash -o artifacts/spikes/MeshBinV4Grid.json",
+    "build:fixtures": "cashc test/fixtures/SelfTest.cash -o test/fixtures/SelfTest.json",
+    "test": "tsx test/run_all.ts",
+    "typecheck": "tsc -p ."
   },
   "dependencies": {
     "@bitauth/libauth": "3.1.0-next.8",

@@ -1,0 +1,73 @@
+{
+  "contractName": "MeshBinV4Grid",
+  "constructorInputs": [
+    { "name": "tokenCat", "type": "bytes32" },
+    { "name": "step", "type": "bytes2" },
+    { "name": "index", "type": "bytes4" },
+    { "name": "spread", "type": "bytes2" },
+    { "name": "ownerCat", "type": "bytes32" },
+    { "name": "managerHash", "type": "bytes32" },
+    { "name": "cooldown", "type": "bytes2" }
+  ],
+  "abi": [
+    { "name": "fill", "inputs": [] },
+    {
+      "name": "owner",
+      "inputs": [
+        { "name": "k", "type": "int" }
+      ]
+    },
+    { "name": "manage", "inputs": [] }
+  ],
+  "bytecode": "OP_7 OP_PICK OP_0 OP_NUMEQUAL OP_IF OP_INPUTINDEX OP_DUP OP_OUTPUTBYTECODE OP_OVER OP_UTXOBYTECODE OP_EQUALVERIFY OP_DUP OP_UTXOTOKENCATEGORY OP_OVER OP_OUTPUTTOKENCATEGORY OP_OVER OP_4 OP_PICK OP_EQUAL OP_ROT OP_0 OP_EQUAL OP_BOOLOR OP_VERIFY OP_DUP OP_3 OP_ROLL OP_EQUAL OP_SWAP OP_0 OP_EQUAL OP_BOOLOR OP_VERIFY OP_DUP OP_OUTPUTTOKENCOMMITMENT OP_0 OP_EQUALVERIFY OP_DUP OP_OUTPUTVALUE e803 OP_GREATERTHANOREQUAL OP_VERIFY OP_DUP OP_OUTPUTTOKENAMOUNT OP_OVER OP_UTXOTOKENAMOUNT OP_SUB OP_OVER OP_OUTPUTVALUE OP_ROT OP_UTXOVALUE OP_SUB OP_ROT OP_BIN2NUM OP_4 OP_ROLL OP_BIN2NUM OP_OVER OP_0 OP_GREATERTHAN OP_VERIFY OP_DUP OP_0 OP_GREATERTHANOREQUAL OP_VERIFY OP_4 OP_ROLL OP_BIN2NUM OP_4 OP_PICK OP_0 OP_LESSTHAN OP_IF OP_2DUP OP_ADD OP_NIP OP_ENDIF OP_3 OP_ROLL 40 OP_LSHIFTNUM OP_4 OP_ROLL OP_4 OP_ROLL OP_3 OP_ROLL OP_1 40 OP_LSHIFTNUM OP_DUP 1027 OP_4 OP_PICK OP_ADD OP_MUL 1027 OP_DIV OP_2 OP_PICK OP_3 OP_PICK OP_0 OP_LESSTHAN OP_IF OP_2 OP_PICK 1027 OP_MUL 1027 OP_6 OP_PICK OP_ADD OP_DIV OP_ROT OP_DROP OP_SWAP OP_0 OP_4 OP_PICK OP_SUB OP_NIP OP_ENDIF OP_ROT OP_BEGIN OP_OVER OP_0 OP_GREATERTHAN OP_DUP OP_TOALTSTACK OP_IF OP_OVER OP_2 OP_MOD OP_1 OP_NUMEQUAL OP_IF OP_DUP OP_3 OP_PICK OP_MUL 40 OP_RSHIFTNUM OP_NIP OP_ENDIF OP_2 OP_PICK OP_3 OP_PICK OP_MUL 40 OP_RSHIFTNUM OP_2SWAP OP_NIP OP_ROT OP_OVER OP_1 OP_RSHIFTNUM OP_ROT OP_DROP OP_SWAP OP_ENDIF OP_FROMALTSTACK OP_NOT OP_UNTIL OP_NIP OP_NIP OP_NIP OP_NIP OP_MUL OP_ADD OP_0 OP_GREATERTHANOREQUAL OP_VERIFY OP_2DROP OP_2DROP OP_DROP OP_1 OP_ELSE OP_7 OP_PICK OP_1 OP_NUMEQUAL OP_IF OP_8 OP_PICK OP_UTXOTOKENCATEGORY 20 OP_SPLIT OP_DROP OP_5 OP_ROLL OP_EQUALVERIFY OP_7 OP_ROLL OP_UTXOTOKENCOMMITMENT OP_SIZE OP_NIP OP_0 OP_GREATERTHAN OP_VERIFY OP_2DROP OP_2DROP OP_2DROP OP_DROP OP_1 OP_ELSE OP_7 OP_ROLL OP_2 OP_NUMEQUALVERIFY OP_0 OP_UTXOBYTECODE aa20 OP_7 OP_ROLL OP_CAT 87 OP_CAT OP_EQUALVERIFY OP_5 OP_ROLL OP_BIN2NUM OP_CHECKSEQUENCEVERIFY OP_2DROP OP_2DROP OP_2DROP OP_1 OP_ENDIF OP_ENDIF",
+  "source": "pragma cashscript ^0.14.0;\n\nimport \"../lib/grid.cash\";\n\n// Spike S4: MeshBinV4 with its prices derived on chain from the grid.\n//   bid = gridPrice(step, index)      ask = gridPrice(step, index + spread)\n// Prices are Q64 (sats per token unit × 2^64), so the fill rule is\n//   ds · 2^64 + dt · price ≥ 0      with price = ask when dt < 0, else bid.\n// Same owner and manage paths as MeshBinV4.\ncontract MeshBinV4Grid(\n    bytes32 tokenCat,\n    bytes2 step,\n    bytes4 index,\n    bytes2 spread,\n    bytes32 ownerCat,\n    bytes32 managerHash,\n    bytes2 cooldown\n) {\n    function fill() {\n        int i = this.activeInputIndex;\n        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);\n\n        bytes inCat = tx.inputs[i].tokenCategory;\n        bytes outCat = tx.outputs[i].tokenCategory;\n        require(inCat == tokenCat || inCat == 0x);\n        require(outCat == tokenCat || outCat == 0x);\n        require(tx.outputs[i].nftCommitment == 0x);\n        require(tx.outputs[i].value >= 1000);\n\n        int dt = tx.outputs[i].tokenAmount - tx.inputs[i].tokenAmount;\n        int ds = tx.outputs[i].value - tx.inputs[i].value;\n        int s = int(step);\n        int sp = int(spread);\n        require(s > 0);\n        require(sp >= 0);\n        int level = int(index);\n        if (dt < 0) {\n            level = level + sp;\n        }\n        require((ds << 64) + dt * gridPrice(s, level) >= 0);\n    }\n\n    function owner(int k) {\n        require(tx.inputs[k].tokenCategory.split(32)[0] == ownerCat);\n        require(tx.inputs[k].nftCommitment.length > 0);\n    }\n\n    function manage() {\n        require(tx.inputs[0].lockingBytecode == new LockingBytecodeP2SH32(managerHash));\n        require(this.age >= int(cooldown));\n    }\n}\n",
+  "fingerprint": "2062d3f7582d0ca8fd6389c3b19fe17b24fb59df8014ab57a2f3b53a081bb9c8",
+  "debug": {
+    "bytecode": "5779009c63c076cd78c78876ce78d1785479877b00879b6976537a877c00879b6976d2008876cc02e803a26976d378d09478cc7bc6947b81547a817800a0697600a269547a815479009f636e937768537a01408d547a547a537a5101408d76021027547993950210279652795379009f63527902102795021027567993967b757c0054799477687b657800a0766b63785297519c637653799501408e7768527953799501408e72777b78518e7b757c686c916677777777959300a2696d6d7551675779519c635879ce01207f75557a88577acf827700a0696d6d6d755167577a529d00c702aa20577a7e01877e88557a81b26d6d6d516868",
+    "sourceMap": "19:4:41:5;;;;;20:16:20:37;21:27:21:28;:16::45:1;:59::60:0;:49::77:1;:8::79;23:32:23:33:0;:22::48:1;24:34:24:35:0;:23::50:1;25:16:25:21:0;:25::33;;:16:::1;:37::42:0;:46::48;:37:::1;:16;:8::50;26:16:26:22:0;:26::34;;:16:::1;:38::44:0;:48::50;:38:::1;:16;:8::52;27:27:27:28:0;:16::43:1;:47::49:0;:8::51:1;28:27:28:28:0;:16::35:1;:39::43:0;:16:::1;:8::45;30:28:30:29:0;:17::42:1;:55::56:0;:45::69:1;:17;31:28:31:29:0;:17::36:1;:49::50:0;:39::57:1;:17;32:20:32:24:0;:16::25:1;33:21:33:27:0;;:17::28:1;34:16:34:17:0;:20::21;:16:::1;:8::23;35:16:35:18:0;:22::23;:16:::1;:8::25;36:24:36:29:0;;:20::30:1;37:12:37:14:0;;:17::18;:12:::1;:20:39:9:0;38::38:30;::::1;:12::31;37:20:39:9;40:17:40:19:0;;:23::25;:17:::1;:29::31:0;;:44::45;;:47::52;;:34::53:1;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;:29;:16;:57::58:0;:16:::1;:8::60;19:20:41:5;;;;:4;43::46::0;;;;;44:26:44:27;;:16::42:1;:49::51:0;:16::52:1;:::55;:59::67:0;;:8::69:1;45:26:45:27:0;;:16::42:1;:::49;;:52::53:0;:16:::1;:8::55;43:26:46:5;;;;;:4;48::51::0;;;;49:26:49:27;:16::44:1;:48::86:0;:74::85;;:48::86:1;;;:8::88;50:32:50:40:0;;:28::41:1;:8::43;48:22:51:5;;;;10:0:52:1;",
+    "logs": [],
+    "requires": [
+      { "ip": 17, "line": 21 },
+      { "ip": 30, "line": 25 },
+      { "ip": 39, "line": 26 },
+      { "ip": 43, "line": 27 },
+      { "ip": 48, "line": 28 },
+      { "ip": 67, "line": 34 },
+      { "ip": 71, "line": 35 },
+      { "ip": 180, "line": 40 },
+      { "ip": 199, "line": 44 },
+      { "ip": 207, "line": 45 },
+      { "ip": 226, "line": 49 },
+      { "ip": 230, "line": 50 }
+    ],
+    "sourceTags": "161:164:lc;165:168:sc",
+    "functions": [
+      {
+        "name": "gridPrice",
+        "inputs": [
+          { "name": "step", "type": "int" },
+          { "name": "index", "type": "int" }
+        ],
+        "bytecode": "5101408d76021027547993950210279652795379009f63527902102795021027567993967b757c0054799477687b657800a0766b63785297519c637653799501408e7768527953799501408e72777b78518e7b757c686c916677777777",
+        "sourceMap": "13:14:13:15;:19::21;:14:::1;14:15:14:18:0;:22::27;:30::34;;:22:::1;:15::35;:38::43:0;:15:::1;15:12:15:17:0;;16:8:16:13;;:16::17;:8:::1;:19:19:5:0;17:15:17:18;;:21::26;:15:::1;:30::35:0;:38::42;;:30:::1;:15::43;:8::44;;;18:12:18:13:0;:16::21;;:12:::1;:8::22;16:19:19:5;20:17:20:20:0;21:4:27:5;:11:21:12;:15::16;:11:::1;;;:18:27:5:0;22:12:22:13;:16::17;:12:::1;:21::22:0;:12:::1;:24:24:9:0;23:22:23:28;:31::35;;:22:::1;:40::42:0;:21:::1;:12::43;22:24:24:9;25:16:25:20:0;;:23::27;;:16:::1;:32::34:0;:15:::1;:8::35;;;26:12:26:13:0;:17::18;:12:::1;:8::19;;;21:18:27:5;;:4;;12:54:29:1;;;",
+        "sourceTags": "74:77:lc;78:81:sc",
+        "sourceFile": "../lib/grid.cash",
+        "logs": [],
+        "requires": []
+      }
+    ],
+    "sources": {
+      "../lib/grid.cash": "pragma cashscript ^0.14.0;\n\n// The V4 price grid, computed on chain. Level `index` of step `step` (bps):\n//\n//   price(step, index) = r^index   in Q64 fixed point (sats per token unit × 2^64)\n//   r = floor(2^64 · (10000 + step) / 10000)          for index ≥ 0\n//   r = floor(2^64 · 10000 / (10000 + step)), |index|  for index < 0\n//\n// Exponentiation by squaring, flooring after every multiply (>> 64). The order\n// of operations is part of the definition: the server's mirror (grid.ts) does\n// exactly the same steps, so both get the same integer.\nfunction gridPrice(int step, int index) returns (int) {\n    int one = 1 << 64;\n    int base = one * (10000 + step) / 10000;\n    int e = index;\n    if (index < 0) {\n        base = one * 10000 / (10000 + step);\n        e = 0 - index;\n    }\n    int result = one;\n    while (e > 0) {\n        if (e % 2 == 1) {\n            result = (result * base) >> 64;\n        }\n        base = (base * base) >> 64;\n        e = e >> 1;\n    }\n    return result;\n}\n"
+    },
+    "inlineRanges": "94:175:gridPrice"
+  },
+  "compiler": {
+    "name": "cashc",
+    "version": "0.14.0",
+    "options": {
+      "enforceFunctionParameterTypes": true,
+      "enforceLocktimeGuard": true
+    }
+  },
+  "updatedAt": "2026-10-16T10:20:23.087Z"
+}

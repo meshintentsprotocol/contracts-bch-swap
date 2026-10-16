@@ -1,0 +1,101 @@
+pragma cashscript ^0.14.0;
+
+// Spike S3: PositionManagerV4 draft. Runs at input 0 of a manage transaction
+// and loops over the position's bins.
+//
+// Keeper rules live in this contract's own parameters, so a bin's managerHash
+// (hash256 of this redeem script) commits to them: changing the keeper or its
+// limits means the owner moves the bins to a new manager. No config UTXO, no
+// extra bytes per bin (decision D4, option "manager parameters").
+//
+// Unlocking data (keeper-supplied, all checked):
+//   shared    = tokenCat 32 ‖ ownerCat 32 ‖ cooldown 2   (same for every bin)
+//   pricesIn  = n × (askDen ‖ askNum ‖ bidDen ‖ bidNum), 8 B each: bins at inputs 1..n
+//   pricesOut = m × the same: new bins at outputs 0..m-1
+// Each listed bin is identified by rebuilding P2SH32(hash256(prefix ‖ binBody))
+// with managerHash = hash256(this.activeBytecode). Every other input must be
+// P2PKH, so no unlisted bin (P2SH) can be spent through manage().
+
+// The four price pushes of a bin's parameter prefix (askDen first: last argument first).
+function pricePushes(bytes rec) returns (bytes) {
+    return 0x08 + rec.split(8)[0] + 0x08 + rec.split(8)[1].split(8)[0]
+         + 0x08 + rec.split(16)[1].split(8)[0] + 0x08 + rec.split(24)[1];
+}
+
+contract PositionManagerV4(
+    bytes binBody,
+    bytes20 keeperPkh,
+    bytes8 feeCap,
+    bytes8 floorNum, bytes8 floorDen,
+    bytes8 ceilNum, bytes8 ceilDen
+) {
+    function manage(bytes shared, bytes pricesIn, bytes pricesOut, pubkey keeperPk, sig keeperSig) {
+        require(this.activeInputIndex == 0);
+        require(hash160(keeperPk) == keeperPkh);
+        require(checkSig(keeperSig, keeperPk));
+
+        require(shared.length == 66);
+        bytes tokenCat = shared.split(32)[0];
+        bytes cooldown = shared.split(64)[1];
+        bytes head = 0x02 + cooldown + 0x20 + hash256(this.activeBytecode) + 0x20 + shared.split(32)[1].split(32)[0];
+        bytes tail = 0x20 + tokenCat + binBody;
+
+        // ── Bins in: inputs 1..n ────────────────────────────────────────────
+        require(pricesIn.length % 32 == 0);
+        int n = pricesIn.length / 32;
+        require(n >= 1);
+        int satsIn = 0;
+        int tokIn = 0;
+        for (int k = 0; k < n; k++) {
+            bytes rec = pricesIn.split(k * 32)[1].split(32)[0];
+            require(tx.inputs[k + 1].lockingBytecode == new LockingBytecodeP2SH32(hash256(head + pricePushes(rec) + tail)));
+            bytes cIn = tx.inputs[k + 1].tokenCategory;
+            require(cIn == tokenCat || cIn == 0x);
+            satsIn = satsIn + tx.inputs[k + 1].value;
+            tokIn = tokIn + tx.inputs[k + 1].tokenAmount;
+        }
+
+        // ── Every other input is P2PKH (fees): no unlisted bin rides along ────
+        for (int k = n + 1; k < tx.inputs.length; k++) {
+            bytes lb = tx.inputs[k].lockingBytecode;
+            require(lb.length == 25);
+            require(lb.split(3)[0] == 0x76a914);
+        }
+
+        // ── Bins out: outputs 0..m-1, same position, prices within bounds ────
+        require(pricesOut.length % 32 == 0);
+        int m = pricesOut.length / 32;
+        require(m >= 1);
+        int satsOut = 0;
+        int tokOut = 0;
+        int fN = int(floorNum);
+        int fD = int(floorDen);
+        int cN = int(ceilNum);
+        int cD = int(ceilDen);
+        for (int j = 0; j < m; j++) {
+            bytes rec = pricesOut.split(j * 32)[1].split(32)[0];
+            require(tx.outputs[j].lockingBytecode == new LockingBytecodeP2SH32(hash256(head + pricePushes(rec) + tail)));
+            bytes cOut = tx.outputs[j].tokenCategory;
+            require(cOut == tokenCat || cOut == 0x);
+            require(tx.outputs[j].nftCommitment == 0x);
+            require(tx.outputs[j].value >= 1000);
+            satsOut = satsOut + tx.outputs[j].value;
+            tokOut = tokOut + tx.outputs[j].tokenAmount;
+
+            int aD = int(rec.split(8)[0]);
+            int aN = int(rec.split(8)[1].split(8)[0]);
+            int bD = int(rec.split(16)[1].split(8)[0]);
+            int bN = int(rec.split(24)[1]);
+            require(aD > 0);
+            require(bD > 0);
+            require(bN > 0);
+            require(aN * bD >= bN * aD);        // ask ≥ bid
+            require(bN * fD >= fN * bD);        // bid ≥ floor
+            require(aN * cD <= cN * aD);        // ask ≤ ceiling
+        }
+
+        // ── Conservation over the listed bins ───────────────────────────────
+        require(satsOut >= satsIn - int(feeCap));
+        require(tokOut >= tokIn);
+    }
+}

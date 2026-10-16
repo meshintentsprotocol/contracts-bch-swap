@@ -1,0 +1,67 @@
+{
+  "contractName": "BinValidatorV4",
+  "constructorInputs": [
+    { "name": "binBody", "type": "bytes" }
+  ],
+  "abi": [
+    {
+      "name": "validate",
+      "inputs": [
+        { "name": "pad", "type": "bytes" }
+      ]
+    }
+  ],
+  "bytecode": "OP_NIP OP_INPUTINDEX OP_0 OP_NUMEQUALVERIFY 8700 OP_OVER OP_SIZE OP_NIP OP_ADD OP_1 OP_BEGIN OP_DUP OP_TXINPUTCOUNT OP_LESSTHAN OP_DUP OP_TOALTSTACK OP_IF OP_DUP OP_UTXOBYTECODE OP_SIZE OP_3 OP_PICK OP_NUMEQUAL OP_IF OP_DUP 8700 OP_SPLIT OP_NIP OP_4 OP_PICK OP_EQUAL OP_IF OP_2DUP OP_DUP 43 OP_SPLIT OP_NIP OP_DUP OP_8 OP_SPLIT OP_DROP OP_OVER OP_9 OP_SPLIT OP_NIP OP_8 OP_SPLIT OP_DROP OP_2 OP_PICK 12 OP_SPLIT OP_NIP OP_8 OP_SPLIT OP_DROP OP_3 OP_PICK 1b OP_SPLIT OP_NIP OP_8 OP_SPLIT OP_DROP OP_4 OP_ROLL 24 OP_SPLIT OP_NIP 20 OP_SPLIT OP_DROP OP_6 OP_PICK OP_OUTPUTBYTECODE OP_6 OP_ROLL OP_EQUALVERIFY OP_5 OP_PICK OP_UTXOTOKENCATEGORY OP_6 OP_PICK OP_OUTPUTTOKENCATEGORY OP_OVER OP_3 OP_PICK OP_EQUAL OP_ROT OP_0 OP_EQUAL OP_BOOLOR OP_VERIFY OP_DUP OP_ROT OP_EQUAL OP_SWAP OP_0 OP_EQUAL OP_BOOLOR OP_VERIFY OP_4 OP_PICK OP_OUTPUTTOKENCOMMITMENT OP_0 OP_EQUALVERIFY OP_4 OP_PICK OP_OUTPUTVALUE e803 OP_GREATERTHANOREQUAL OP_VERIFY OP_4 OP_PICK OP_OUTPUTTOKENAMOUNT OP_5 OP_PICK OP_UTXOTOKENAMOUNT OP_SUB OP_5 OP_PICK OP_OUTPUTVALUE OP_6 OP_ROLL OP_UTXOVALUE OP_SUB OP_2OVER OP_SWAP OP_3 OP_PICK OP_0 OP_LESSTHAN OP_IF OP_6 OP_PICK OP_ROT OP_DROP OP_SWAP OP_7 OP_PICK OP_NIP OP_ENDIF OP_BIN2NUM OP_DUP OP_0 OP_GREATERTHAN OP_VERIFY OP_ROT OP_MUL OP_ROT OP_ROT OP_BIN2NUM OP_MUL OP_ADD OP_0 OP_GREATERTHANOREQUAL OP_VERIFY OP_ROT OP_BIN2NUM OP_ROT OP_BIN2NUM OP_MUL OP_SWAP OP_BIN2NUM OP_ROT OP_BIN2NUM OP_MUL OP_GREATERTHANOREQUAL OP_VERIFY OP_ENDIF OP_ENDIF OP_SWAP OP_1ADD OP_NIP OP_ENDIF OP_FROMALTSTACK OP_NOT OP_UNTIL OP_DROP OP_TXINPUTCOUNT OP_2 OP_GREATERTHANOREQUAL OP_NIP OP_NIP",
+  "source": "pragma cashscript ^0.14.0;\n\n// Spike S2: the validator for P2S bins (MeshBinP2S). Runs at input 0 and loops\n// over every input; each input whose locking script is a P2S bin (length and\n// body match) is checked exactly as MeshBinV4.fill() checks itself, reading\n// the bin's parameters from fixed offsets of its locking script.\n//\n// The bin body is a constructor argument, so the validator's hash (which the\n// bins name) depends on the bin body but not the other way round: no cycle.\n\nfunction binOk(int k, bytes lb) {\n    bytes p = lb.split(67)[1];\n    bytes askDen = p.split(8)[0];\n    bytes askNum = p.split(9)[1].split(8)[0];\n    bytes bidDen = p.split(18)[1].split(8)[0];\n    bytes bidNum = p.split(27)[1].split(8)[0];\n    bytes tokenCat = p.split(36)[1].split(32)[0];\n\n    require(tx.outputs[k].lockingBytecode == lb);\n    bytes inCat = tx.inputs[k].tokenCategory;\n    bytes outCat = tx.outputs[k].tokenCategory;\n    require(inCat == tokenCat || inCat == 0x);\n    require(outCat == tokenCat || outCat == 0x);\n    require(tx.outputs[k].nftCommitment == 0x);\n    require(tx.outputs[k].value >= 1000);\n\n    int dt = tx.outputs[k].tokenAmount - tx.inputs[k].tokenAmount;\n    int ds = tx.outputs[k].value - tx.inputs[k].value;\n    bytes num = bidNum;\n    bytes den = bidDen;\n    if (dt < 0) {\n        num = askNum;\n        den = askDen;\n    }\n    int d = int(den);\n    require(d > 0);\n    require(ds * d + dt * int(num) >= 0);\n    require(int(askNum) * int(bidDen) >= int(bidNum) * int(askDen));\n}\n\ncontract BinValidatorV4(bytes binBody) {\n    // `pad` is unused data: it buys operation-cost budget (800 per unlocking byte)\n    // for long sweeps, since the loop does every bin's work in this one input.\n    function validate(bytes pad) {\n        require(this.activeInputIndex == 0);\n        int len = 135 + binBody.length;\n        for (int k = 1; k < tx.inputs.length; k++) {\n            bytes lb = tx.inputs[k].lockingBytecode;\n            if (lb.length == len) {\n                if (lb.split(135)[1] == binBody) {\n                    binOk(k, lb);\n                }\n            }\n        }\n        require(tx.inputs.length >= 2);\n    }\n}\n",
+  "fingerprint": "f70957baf2c4d02dcfe1e1f5bab5bfd8911516849f75d9282f484e0f8668f68c",
+  "debug": {
+    "bytecode": "77c0009d02870078827793516576c39f766b6376c78253799c63760287007f77547987636e7601437f7776587f7578597f77587f75527901127f77587f755379011b7f77587f75547a01247f7701207f755679cd567a885579ce5679d1785379877b00879b69767b877c00879b695479d200885479cc02e803a2695479d35579d0945579cc567ac694707c5379009f6356797b757c57797768817600a0697b957b7b81959300a2697b817b81957c817b8195a26968687c8b77686c916675c352a27777",
+    "sourceMap": "44:22:44:31;45:16:45:37;:41::42;:8::44:1;46:18:46:21:0;:24::31;:::38:1;;:18;47:21:47:22:0;:8:54:9;:24:47:25;:28::44;:24:::1;;;:51:54:9:0;48:33:48:34;:23::51:1;49:16:49:25;:29::32:0;;:16:::1;:34:53:13:0;50:20:50:22;:29::32;:20::33:1;:::36;:40::47:0;;:20:::1;:49:52:17:0;51:26:51:31;:20::32:1;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;50:49:52:17;49:34:53:13;47:46:47:49;;::54:9;:51;;:8;;;55:16:55:32:0;:36::37;:8::39:1;44:33:56:5;",
+    "logs": [],
+    "requires": [
+      { "ip": 4, "line": 45 },
+      { "ip": 78, "line": 51 },
+      { "ip": 93, "line": 51 },
+      { "ip": 101, "line": 51 },
+      { "ip": 106, "line": 51 },
+      { "ip": 112, "line": 51 },
+      { "ip": 147, "line": 51 },
+      { "ip": 157, "line": 51 },
+      { "ip": 169, "line": 51 },
+      { "ip": 183, "line": 55 }
+    ],
+    "sourceTags": "171:173:fu;174:177:lc;178:178:sc;182:183:sc",
+    "functions": [
+      {
+        "name": "binOk",
+        "inputs": [
+          { "name": "k", "type": "int" },
+          { "name": "lb", "type": "bytes" }
+        ],
+        "bytecode": "7601437f7776587f7578597f77587f75527901127f77587f755379011b7f77587f75547a01247f7701207f755679cd567a885579ce5679d1785379877b00879b69767b877c00879b695479d200885479cc02e803a2695479d35579d0945579cc567ac694707c5379009f6356797b757c57797768817600a0697b957b7b81959300a2697b817b81957c817b8195a269",
+        "sourceMap": "12:14:12:16;:23::25;:14::26:1;:::29;13:19:13:20:0;:27::28;:19::29:1;:::32;14::14:20:0;:27::28;:19::29:1;:::32;:39::40:0;:19::41:1;:::44;15::15:20:0;;:27::29;:19::30:1;:::33;:40::41:0;:19::42:1;:::45;16::16:20:0;;:27::29;:19::30:1;:::33;:40::41:0;:19::42:1;:::45;17:21:17:22:0;;:29::31;:21::32:1;:::35;:42::44:0;:21::45:1;:::48;19:23:19:24:0;;:12::41:1;:45::47:0;;:4::49:1;20:28:20:29:0;;:18::44:1;21:30:21:31:0;;:19::46:1;22:12:22:17:0;:21::29;;:12:::1;:33::38:0;:42::44;:33:::1;:12;:4::46;23:12:23:18:0;:22::30;:12:::1;:34::40:0;:44::46;:34:::1;:12;:4::48;24:23:24:24:0;;:12::39:1;:43::45:0;:4::47:1;25:23:25:24:0;;:12::31:1;:35::39:0;:12:::1;:4::41;27:24:27:25:0;;:13::38:1;:51::52:0;;:41::65:1;:13;28:24:28:25:0;;:13::32:1;:45::46:0;;:35::53:1;:13;29:16:30:22:0;;31:8:31:10;;:13::14;:8:::1;:16:34:5:0;32:14:32:20;;:8::21:1;;;33:14:33:20:0;;:8::21:1;31:16:34:5;35:12:35:20;36::36:13:0;:16::17;:12:::1;:4::19;37:12:37:14:0;:::18:1;:21::23:0;:30::33;:26::34:1;:21;:12;:38::39:0;:12:::1;:4::41;38:16:38:22:0;:12::23:1;:30::36:0;:26::37:1;:12;:45::51:0;:41::52:1;:59::65:0;:55::66:1;:41;:12;:4::68",
+        "logs": [],
+        "requires": [
+          { "ip": 44, "line": 19 },
+          { "ip": 59, "line": 22 },
+          { "ip": 67, "line": 23 },
+          { "ip": 72, "line": 24 },
+          { "ip": 78, "line": 25 },
+          { "ip": 113, "line": 36 },
+          { "ip": 123, "line": 37 },
+          { "ip": 135, "line": 38 }
+        ]
+      }
+    ],
+    "inlineRanges": "34:169:binOk"
+  },
+  "compiler": {
+    "name": "cashc",
+    "version": "0.14.0",
+    "options": {
+      "enforceFunctionParameterTypes": true,
+      "enforceLocktimeGuard": true
+    }
+  },
+  "updatedAt": "2026-10-16T10:20:20.528Z"
+}

@@ -1,0 +1,57 @@
+pragma cashscript ^0.14.0;
+
+// Spike S2: the validator for P2S bins (MeshBinP2S). Runs at input 0 and loops
+// over every input; each input whose locking script is a P2S bin (length and
+// body match) is checked exactly as MeshBinV4.fill() checks itself, reading
+// the bin's parameters from fixed offsets of its locking script.
+//
+// The bin body is a constructor argument, so the validator's hash (which the
+// bins name) depends on the bin body but not the other way round: no cycle.
+
+function binOk(int k, bytes lb) {
+    bytes p = lb.split(67)[1];
+    bytes askDen = p.split(8)[0];
+    bytes askNum = p.split(9)[1].split(8)[0];
+    bytes bidDen = p.split(18)[1].split(8)[0];
+    bytes bidNum = p.split(27)[1].split(8)[0];
+    bytes tokenCat = p.split(36)[1].split(32)[0];
+
+    require(tx.outputs[k].lockingBytecode == lb);
+    bytes inCat = tx.inputs[k].tokenCategory;
+    bytes outCat = tx.outputs[k].tokenCategory;
+    require(inCat == tokenCat || inCat == 0x);
+    require(outCat == tokenCat || outCat == 0x);
+    require(tx.outputs[k].nftCommitment == 0x);
+    require(tx.outputs[k].value >= 1000);
+
+    int dt = tx.outputs[k].tokenAmount - tx.inputs[k].tokenAmount;
+    int ds = tx.outputs[k].value - tx.inputs[k].value;
+    bytes num = bidNum;
+    bytes den = bidDen;
+    if (dt < 0) {
+        num = askNum;
+        den = askDen;
+    }
+    int d = int(den);
+    require(d > 0);
+    require(ds * d + dt * int(num) >= 0);
+    require(int(askNum) * int(bidDen) >= int(bidNum) * int(askDen));
+}
+
+contract BinValidatorV4(bytes binBody) {
+    // `pad` is unused data: it buys operation-cost budget (800 per unlocking byte)
+    // for long sweeps, since the loop does every bin's work in this one input.
+    function validate(bytes pad) {
+        require(this.activeInputIndex == 0);
+        int len = 135 + binBody.length;
+        for (int k = 1; k < tx.inputs.length; k++) {
+            bytes lb = tx.inputs[k].lockingBytecode;
+            if (lb.length == len) {
+                if (lb.split(135)[1] == binBody) {
+                    binOk(k, lb);
+                }
+            }
+        }
+        require(tx.inputs.length >= 2);
+    }
+}

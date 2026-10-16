@@ -1,0 +1,52 @@
+pragma cashscript ^0.14.0;
+
+import "../lib/grid.cash";
+
+// Spike S4: MeshBinV4 with its prices derived on chain from the grid.
+//   bid = gridPrice(step, index)      ask = gridPrice(step, index + spread)
+// Prices are Q64 (sats per token unit × 2^64), so the fill rule is
+//   ds · 2^64 + dt · price ≥ 0      with price = ask when dt < 0, else bid.
+// Same owner and manage paths as MeshBinV4.
+contract MeshBinV4Grid(
+    bytes32 tokenCat,
+    bytes2 step,
+    bytes4 index,
+    bytes2 spread,
+    bytes32 ownerCat,
+    bytes32 managerHash,
+    bytes2 cooldown
+) {
+    function fill() {
+        int i = this.activeInputIndex;
+        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+
+        bytes inCat = tx.inputs[i].tokenCategory;
+        bytes outCat = tx.outputs[i].tokenCategory;
+        require(inCat == tokenCat || inCat == 0x);
+        require(outCat == tokenCat || outCat == 0x);
+        require(tx.outputs[i].nftCommitment == 0x);
+        require(tx.outputs[i].value >= 1000);
+
+        int dt = tx.outputs[i].tokenAmount - tx.inputs[i].tokenAmount;
+        int ds = tx.outputs[i].value - tx.inputs[i].value;
+        int s = int(step);
+        int sp = int(spread);
+        require(s > 0);
+        require(sp >= 0);
+        int level = int(index);
+        if (dt < 0) {
+            level = level + sp;
+        }
+        require((ds << 64) + dt * gridPrice(s, level) >= 0);
+    }
+
+    function owner(int k) {
+        require(tx.inputs[k].tokenCategory.split(32)[0] == ownerCat);
+        require(tx.inputs[k].nftCommitment.length > 0);
+    }
+
+    function manage() {
+        require(tx.inputs[0].lockingBytecode == new LockingBytecodeP2SH32(managerHash));
+        require(this.age >= int(cooldown));
+    }
+}

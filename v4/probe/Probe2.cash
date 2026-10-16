@@ -1,0 +1,21 @@
+pragma cashscript ^0.14.0;
+
+// Toolchain probe: a helper called twice (expect OP_DEFINE once, OP_INVOKE twice).
+function priceOk(int ds, int dt, int num, int den) {
+    require(den > 0);
+    require(ds * den + dt * num >= 0);
+}
+
+contract Probe2(int bidNum, int bidDen, int askNum, int askDen) {
+    function spend() {
+        int i = this.activeInputIndex;
+        int dt = tx.outputs[i].tokenAmount - tx.inputs[i].tokenAmount;
+        int ds = tx.outputs[i].value - tx.inputs[i].value;
+        if (dt < 0) {
+            priceOk(ds, dt, askNum, askDen);
+        } else {
+            priceOk(ds, dt, bidNum, bidDen);
+        }
+        require(tx.outputs.length > i);
+    }
+}

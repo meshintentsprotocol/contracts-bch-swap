@@ -1,0 +1,17 @@
+{
+  "parityCases": 162,
+  "gridPriceOpCost": {
+    "100bps/1": "14261 / 120800",
+    "100bps/100": "39491 / 121600",
+    "100bps/1852": "56828 / 124800",
+    "100bps/-1852": "56619 / 119200",
+    "10bps/18430": "74119 / 124000",
+    "1bps/184216": "86443 / 124800",
+    "1bps/-184216": "86146 / 119200"
+  },
+  "gridBinRedeemBytes": 361,
+  "gridBinBytesPerBinCrossed": 452.0869565217391,
+  "gridBinFillOpCost": "69185 / 324800",
+  "slimBytesPerBinCrossed": 386.0869565217391,
+  "maxRelDeviationFromV3Grid": 1.7711832001054972e-11
+}

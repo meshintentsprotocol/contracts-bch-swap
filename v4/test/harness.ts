@@ -201,5 +201,14 @@ export function le(v: bigint | number, bytes: number): string {
     return out;
 }
 
+/** VM number of exactly `bytes` bytes, signed (sign-magnitude: top bit of the last byte), as hex. */
+export function sle(v: bigint | number, bytes: number): string {
+    const x = BigInt(v);
+    const mag = le(x < 0n ? -x : x, bytes);
+    if (x >= 0n) return mag;
+    const last = parseInt(mag.slice(-2), 16) | 0x80;
+    return mag.slice(0, -2) + last.toString(16).padStart(2, '0');
+}
+
 /** Display-order category → the order the VM's introspection pushes. */
 export const catVm = (c: string) => c.match(/.{2}/g)!.reverse().join('');

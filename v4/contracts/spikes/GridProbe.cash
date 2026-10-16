@@ -1,0 +1,10 @@
+pragma cashscript ^0.14.0;
+
+import "../lib/grid.cash";
+
+// Spike S4: asserts the on-chain grid price equals the server's value.
+contract GridProbe() {
+    function check(int step, int index, int expected) {
+        require(gridPrice(step, index) == expected);
+    }
+}

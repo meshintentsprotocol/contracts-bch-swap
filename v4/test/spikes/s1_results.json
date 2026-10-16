@@ -1,0 +1,20 @@
+{
+  "redeemBytes": 295,
+  "prefixBytes": 138,
+  "bodyBytes": 157,
+  "binInputBytes": 342,
+  "binOutputBytes": 44,
+  "unlockingBytes": 299,
+  "opCost": 18353,
+  "maxOpCost": 272000,
+  "sweepSizes": {
+    "1": 640,
+    "2": 1026,
+    "8": 3344,
+    "16": 6432,
+    "24": 9520
+  },
+  "bytesPerBinCrossed": 386.0869565217391,
+  "binOutputBytesWithToken": 79,
+  "bytesPerBinCrossedSell": 421
+}

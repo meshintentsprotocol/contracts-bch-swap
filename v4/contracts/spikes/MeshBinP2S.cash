@@ -1,0 +1,27 @@
+pragma cashscript ^0.14.0;
+
+// Spike S2: a bin small enough to be a standard P2S locking script (≤ 201 B).
+// It carries its parameters in the output itself and checks nothing about the
+// fill: input 0 must be the validator (BinValidatorV4), which loops over every
+// input matching this template and enforces the price rules for each.
+//
+// Locking script = pushes (last parameter first) + body. Offsets of the fields
+// inside it are fixed, so the validator reads them without parsing:
+//   [1,33) validatorHash  [34,66) ownerCat  [67,75) askDen  [76,84) askNum
+//   [85,93) bidDen  [94,102) bidNum  [103,135) tokenCat   then the body.
+contract MeshBinP2S(
+    bytes32 tokenCat,
+    bytes8 bidNum, bytes8 bidDen,
+    bytes8 askNum, bytes8 askDen,
+    bytes32 ownerCat,
+    bytes32 validatorHash
+) {
+    function fill() {
+        require(tx.inputs[0].lockingBytecode == new LockingBytecodeP2SH32(validatorHash));
+    }
+
+    function owner(int k) {
+        require(tx.inputs[k].tokenCategory.split(32)[0] == ownerCat);
+        require(tx.inputs[k].nftCommitment.length > 0);
+    }
+}
