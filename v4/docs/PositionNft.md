@@ -95,4 +95,4 @@ BCH token metadata is **BCMR** (CHIP-BCMR v2). There's no other standard in use,
 | Category (= seed txid) | `9b9b2ed979b07141b47c2c7c6bbeb2970022dd0f19739f1831643c9da10ad130` |
 | Genesis | [`1a64e4fc…6b81`](https://chipnet.imaginary.cash/tx/1a64e4fc8faaec5512ba03b183beac9c407c9c308f9865d98551824ccdd56b81) (617 B): identity output 0, NFT output 1 to the user's wallet, 3 bins, BCMR publication |
 | Registry | https://mesh-metadata.vercel.app/bcmr/9b9b2ed979b07141b47c2c7c6bbeb2970022dd0f19739f1831643c9da10ad130.json (sha256 `6beafbb5…0adc`) |
-| Resolution | `resolve-position-metadata.ts` passes every step. Paytaca's chipnet indexer returns the name, the NFT parse definition, and the genesis as authchain head |
+| Resolution | `resolve-position-metadata.ts` passes every step. Paytaca's chipnet indexer returns the name, the NFT parse definition, and the genesis as authchain head. **Cashonize shows the NFT with every field decoded** (confirmed by the user 2026-10-16) |
