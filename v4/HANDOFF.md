@@ -1,17 +1,17 @@
 # Mesh V4: handoff (where to pick up)
 
-Updated 2026-10-16 (phases 0–3 closed; phase 4 frontend started). Read this first in a new session. The plan is in `docs-site/docs/LPS/v4plan/` (01 phases, 02 contracts and CHIPs, 03 testing, 04 frontend) and the decisions are in **`v4plan/DECISIONS.md`**. Background is in `docs-site/docs/LPS/protocol discusions/` 06, 10 and 11.
+Updated 2026-10-16 (phases 0–4 closed; phase 5 hardening next). Read this first in a new session. The plan is in `docs-site/docs/LPS/v4plan/` (01 phases, 02 contracts and CHIPs, 03 testing, 04 frontend) and the decisions are in **`v4plan/DECISIONS.md`**. Background is in `docs-site/docs/LPS/protocol discusions/` 06, 10 and 11.
 
 ## Where we are
 
-**Phases 0–3 are closed: contracts, position NFT (live on chipnet, shown in Cashonize) and the server V4a (live chipnet e2e green). Phase 4 (frontend V4a) is next.** Specs: `docs/MeshBinV4.md` (1.1, frozen for audit) and `docs/PositionNft.md`. `npm test` in `v4/`: **350 passed, 0 failed**. `npm run typecheck` is clean.
+**Phases 0–4 are closed: contracts, position NFT (live on chipnet, shown in Cashonize), the server V4a and the frontend V4a (headless browser run on chipnet green). Phase 5 (hardening and launch) is next.** Specs: `docs/MeshBinV4.md` (1.1, frozen for audit) and `docs/PositionNft.md`. `npm test` in `v4/`: **350 passed, 0 failed**. `npm run typecheck` is clean.
 
 | Repo | State |
 |---|---|
 | `contracts-bch-swap` (branch `alpha`) | `v4/`: harness, spikes, MeshBinV4 + 4 variants, encoder, vectors, every suite. Commits `1617e79` → `8fe4f44` → `bf13160` → the phase 1 completion commit |
 | `docs-site` | `v4plan/DECISIONS.md` (`50d23f5`, updated with the phase 1 numbers) |
 | `BCHMesh/meshserver` | Phase 3: `dbdc23d` → `80c1f4a` (router/executor legs, reconciler, position API, activity, depth, migration plan, buy-cap fix). Jest 546/546. **Not deployed to Railway** |
-| `frontend` | API reference `src/docs/content/api/v4.md` and user guide `mesh/v4/overview.md` (`7a3ddad`, `dcbd20c`). Phase 4 UI work starts here |
+| `frontend` | Phase 4: `d0c532c` → `b1c8f50` (lib `src/lib/mesh/v4`, builder engine switch, position page, withdraw/send, migration, depth split, raw broadcast fix, user guide). vitest lib/mesh 156/156 |
 
 ## What's in `v4/`
 
@@ -45,8 +45,9 @@ Updated 2026-10-16 (phases 0–3 closed; phase 4 frontend started). Read this fi
 2. **Phase 2 is done (2026-10-16).** Position 9b9b2ed9… minted on chipnet (genesis 1a64e4fc…) with BCMR metadata at https://mesh-metadata.vercel.app/bcmr/<category>.json (static Vercel project `v4/mesh-metadata`); Paytaca's chipnet indexer resolves it; `tools/resolve-position-metadata.ts` checks it from chain. **Confirmed in Cashonize** by the user (all fields decoded); see docs/PositionNft.md §4–5.
 3. **Phase 3: server V4a** in meshserver: port `v4_encode.ts` and `position.ts` with both vector files (L3 parity in jest), register positions with `checkGenesis`, index bins by `ownerCat`, add V4 legs to the router and executor, and add `scripts/check-v4-fills.ts` (V1–V8). A manage transaction can't also fill intents (height vs time locktime).
 4. **Phase 3 is done (2026-10-16).** meshserver `src/pools/v4/` (binV4, grid, position, v4Pools, positionStore/Registry/Planner, metadataPublisher) and `/api/v1/v4` (preview, metadata pin, register, list/holder, detail, activity, withdraw-plan, migrate/plan, bins, grid). Live run: `test/e2e/e2e_v4_api_live.ts` (steps S D M F R H T W A G C), results in `data/v4_api_live_2026-10-16/`. Needs from the user: a pinning key (`PINATA_JWT`, or Filebase via kubo RPC) and `V4_IDENTITY_ADDRESS` for a real server; the Sanity import of the two docs pages.
-5. **Phase 4: frontend V4a** (v4plan/04 §4): builder V4 path + engine badge, position page (bin strip, activity), transfer, withdraw, migration wizard, depth split by engine. Test with vitest + headless Playwright against the local server.
-6. Phase 6 later: turn the S3 draft into `PositionManagerV4`. Consume the price list as it loops (its cost is quadratic now), use `gridPrice` for the K bound, and add tests M1–M10.
+5. **Phase 4 is done (2026-10-16).** Frontend: `src/lib/mesh/v4` (encoder with inlined template bodies, vector parity, `verify.ts` checks every server plan before signing, builders), `components/mesh/v4`, `pages/MeshPositionPage.tsx` (`/mesh/position/:category`). Headless Playwright run on chipnet against local :3001 (started with `V4_IDENTITY_ADDRESS` = the funder's address, env only) passed: deploy (seed step), position page, depth split, withdraw one bin, send NFT, V3 range → V4 in one signature, My positions. **Gotcha:** cashscript 0.12 `send()` debug-evaluates in a pre-2026 VM that refuses NFT commitments > 40 bytes; V4 sends use `signer.send(b, p, { raw: true })`. External wallets (Paytaca/Cashonize via WalletConnect) are untested with the 82-byte commitment. Not built: split position, admin positions page, V3 card "moved to V4" lineage.
+6. **Phase 5 next:** chipnet E2E/stress (R009/R010 with V4), security review, audit #1 booking, capped mainnet (needs the user).
+7. Phase 6 later: turn the S3 draft into `PositionManagerV4`. Consume the price list as it loops (its cost is quadratic now), use `gridPrice` for the K bound, and add tests M1–M10.
 
 ## Rules (from the user; these override defaults)
 
