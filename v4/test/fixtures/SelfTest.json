@@ -1,0 +1,36 @@
+{
+  "contractName": "SelfTest",
+  "constructorInputs": [
+    { "name": "ownerPkh", "type": "bytes20" }
+  ],
+  "abi": [
+    {
+      "name": "spend",
+      "inputs": [
+        { "name": "secret", "type": "int" }
+      ]
+    }
+  ],
+  "bytecode": "OP_SWAP OP_7 OP_NUMEQUALVERIFY OP_0 OP_OUTPUTBYTECODE 76a914 OP_ROT OP_CAT 88ac OP_CAT OP_EQUALVERIFY OP_0 OP_OUTPUTVALUE d007 OP_GREATERTHANOREQUAL",
+  "source": "pragma cashscript ^0.14.0;\n\n// Harness self-test fixture: a known rule the VM must enforce.\ncontract SelfTest(bytes20 ownerPkh) {\n    function spend(int secret) {\n        require(secret == 7);\n        require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(ownerPkh));\n        require(tx.outputs[0].value >= 2000);\n    }\n}\n",
+  "fingerprint": "89cdc5d57e987eeb17c4ce30948918d39a83dce8ca69b8f37439a8382ecec01e",
+  "debug": {
+    "bytecode": "7c579d00cd0376a9147b7e0288ac7e8800cc02d007a2",
+    "sourceMap": "6:16:6:22;:26::27;:8::29:1;7:27:7:28:0;:16::45:1;:49::83:0;:74::82;:49::83:1;;;:8::85;8:27:8:28:0;:16::35:1;:39::43:0;:8::45:1",
+    "logs": [],
+    "requires": [
+      { "ip": 3, "line": 6 },
+      { "ip": 11, "line": 7 },
+      { "ip": 16, "line": 8 }
+    ]
+  },
+  "compiler": {
+    "name": "cashc",
+    "version": "0.14.0",
+    "options": {
+      "enforceFunctionParameterTypes": true,
+      "enforceLocktimeGuard": true
+    }
+  },
+  "updatedAt": "2026-10-16T09:56:40.437Z"
+}

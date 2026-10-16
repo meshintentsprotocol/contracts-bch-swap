@@ -1,0 +1,10 @@
+pragma cashscript ^0.14.0;
+
+// Harness self-test fixture: a known rule the VM must enforce.
+contract SelfTest(bytes20 ownerPkh) {
+    function spend(int secret) {
+        require(secret == 7);
+        require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(ownerPkh));
+        require(tx.outputs[0].value >= 2000);
+    }
+}
