@@ -4,6 +4,9 @@
  */
 import { resetStats, stats } from './harness.js';
 import { run as selftest } from './selftest.js';
+import { run as vectors } from './MeshBinV4.vectors.test.js';
+import { run as binB } from './MeshBinV4.test.js';
+import { run as binOptions } from './MeshBinV4.options.test.js';
 import { run as s1 } from './spikes/s1_bin_bytes.js';
 import { run as s2 } from './spikes/s2_p2s_validator.js';
 import { run as s3 } from './spikes/s3_manager_cost.js';
@@ -11,6 +14,9 @@ import { run as s4 } from './spikes/s4_grid_onchain.js';
 
 const suites: Array<[string, () => void | Promise<void>]> = [
     ['harness self-test', selftest],
+    ['MeshBinV4 · L3 vectors', vectors],
+    ['MeshBinV4 · B0–B9', binB],
+    ['MeshBinV4 · B10 options', binOptions],
     ['spike S1 · slim bin bytes', s1],
     ['spike S2 · P2S bin + validator', s2],
     ['spike S3 · manager loop cost', s3],

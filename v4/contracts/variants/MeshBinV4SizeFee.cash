@@ -1,0 +1,60 @@
+pragma cashscript ^0.14.0;
+
+import "../lib/bin.cash";
+
+// MeshBinV4 with a size-based fee: big trades pay more (they move the market
+// and take the most from the LP). With size = |dt| tokens:
+//   fee = min(maxFee, baseFee + slope · max(0, size − refSize) / refSize)   bps
+// Kept exact by multiplying through by refSize (no division, so no rounding in
+// the trader's favour):
+//   F = min(maxFee·ref, baseFee·ref + slope·max(0, size − ref))
+//   buys  (dt < 0): ds·askDen·10000·ref + dt·askNum·(10000·ref + F) ≥ 0
+//   sells (dt ≥ 0): ds·bidDen·10000·ref + dt·bidNum·(10000·ref − F) ≥ 0
+contract MeshBinV4SizeFee(
+    bytes32 tokenCat,
+    bytes8 bidNum, bytes8 bidDen,
+    bytes8 askNum, bytes8 askDen,
+    bytes32 ownerCat,
+    bytes32 managerHash,
+    bytes4 manageAfter,
+    bytes2 baseFee,
+    bytes2 slope,
+    bytes8 refSize,
+    bytes2 maxFee
+) {
+    function fill() {
+        int dt, int ds = binDeltas(tokenCat);
+        int ref = int(refSize);
+        int cap = int(maxFee);
+        int base = int(baseFee);
+        int sl = int(slope);
+        require(ref > 0);
+        require(within(cap, 0, 10000));
+        require(within(base, 0, cap + 1));
+        require(sl >= 0);
+        int F = min(cap * ref, base * ref + sl * max(0, abs(dt) - ref));
+
+        bytes num = bidNum;
+        bytes den = bidDen;
+        int mul = 10000 * ref - F;
+        if (dt < 0) {
+            num = askNum;
+            den = askDen;
+            mul = 10000 * ref + F;
+        }
+        int n = int(num);
+        int d = int(den);
+        require(min(n, d) > 0);
+        require(ds * d * 10000 * ref + dt * n * mul >= 0);
+        require(int(askNum) * int(bidDen) >= int(bidNum) * int(askDen));
+    }
+
+    function owner(int k) {
+        require(ownerOk(k, ownerCat));
+    }
+
+    function manage() {
+        require(managerAt0(managerHash));
+        require(tx.time >= int(manageAfter));
+    }
+}

@@ -25,11 +25,13 @@ const ROOT = join(HERE, '..', '..', 'artifacts');
 const BIN = JSON.parse(readFileSync(join(ROOT, 'MeshBinV4.json'), 'utf-8'));
 const MGR = JSON.parse(readFileSync(join(ROOT, 'spikes', 'PositionManagerV4.json'), 'utf-8'));
 const BODY = binV4Body(BIN, net);
-const COOLDOWN = 6;
+const COOLDOWN = 6;          // blocks between manage calls (manager parameter)
+const NOW = 900_000;         // the manage transaction's locktime (a block height)
+const LAST = NOW - 10;       // manageAfter of the bins being managed
 
 function manager(keeperPkh = KEEPER.pkh, feeCap = 2_000n) {
     return new Contract(MGR, [
-        '0x' + BODY, keeperPkh, '0x' + le(feeCap, 8),
+        '0x' + BODY, keeperPkh, '0x' + le(feeCap, 8), '0x' + le(COOLDOWN, 4),
         '0x' + le(1000, 8), '0x' + le(1, 8),      // floor: bid ≥ 1,000 sats per unit
         '0x' + le(100_000, 8), '0x' + le(1, 8),   // ceiling: ask ≤ 100,000
     ], { provider: net, contractType: 'p2sh32' });
@@ -40,36 +42,39 @@ const MGR_HASH = binToHex(lockOf(MANAGER).slice(2, 34));
 const level = (k: number) => ({ bid: BigInt(1990 + 10 * k), ask: BigInt(2000 + 10 * k) });
 const params = (k: number, over: Partial<BinV4Params> = {}): BinV4Params => ({
     tokenCat: TOKEN_A, ownerCat: TOKEN_B, bidNum: level(k).bid, bidDen: 1n, askNum: level(k).ask, askDen: 1n,
-    managerHash: MGR_HASH, cooldown: COOLDOWN, ...over,
+    managerHash: MGR_HASH, manageAfter: LAST, ...over,
 });
 const rec = (p: BinV4Params) => le(p.askDen, 8) + le(p.askNum, 8) + le(p.bidDen, 8) + le(p.bidNum, 8);
-const shared = '0x' + catVm(TOKEN_A) + catVm(TOKEN_B) + le(COOLDOWN, 2);
+const recIn = (p: BinV4Params) => rec(p) + le(p.manageAfter ?? 0, 4);
+const shared = '0x' + catVm(TOKEN_A) + catVm(TOKEN_B);
 
 interface ManageOpts {
     shiftBy?: number; satsShort?: bigint; tokShort?: bigint; outOver?: Partial<BinV4Params>;
-    signer?: typeof KEEPER; mgr?: Contract; sequence?: number; extraInput?: 'unlisted-bin' | 'none';
-    noManager?: boolean;
+    signer?: typeof KEEPER; mgr?: Contract; locktime?: number; nextAfter?: number; extraInput?: 'unlisted-bin' | 'none';
+    noManager?: boolean; inAfter?: number;
 }
 
 /** Re-price n bins one level up; each holds 10,000 sats + 50 tokens. */
 function manage(n: number, o: ManageOpts = {}) {
     const mgr = o.mgr ?? MANAGER;
-    const ins = Array.from({ length: n }, (_, k) => params(k));
-    const outs = Array.from({ length: n }, (_, k) => params(k + (o.shiftBy ?? 1), o.outOver));
+    const locktime = o.locktime ?? NOW;
+    const nextAfter = o.nextAfter ?? locktime + COOLDOWN;
+    const ins = Array.from({ length: n }, (_, k) => params(k, o.inAfter !== undefined ? { manageAfter: o.inAfter } : {}));
+    const outs = Array.from({ length: n }, (_, k) => params(k + (o.shiftBy ?? 1), { manageAfter: nextAfter, ...o.outOver }));
     const signer = o.signer ?? KEEPER;
-    const b = tb();
+    const b = tb().setLocktime(locktime);
     if (!o.noManager) {
         b.addInput(utxo(mgr.lockingBytecode, 1_000n), mgr.unlock.manage(
-            shared, '0x' + ins.map(rec).join(''), '0x' + outs.map(rec).join(''), signer.pub, signer.template,
+            shared, '0x' + ins.map(recIn).join(''), '0x' + outs.map(rec).join(''), '0x' + le(nextAfter, 4), signer.pub, signer.template,
         ));
     }
     ins.forEach((p) => {
         const c = binV4Contract(BIN, p, net);
-        b.addInput(utxo(c.lockingBytecode, 10_000n, tok(50n)), c.unlock.manage(), { sequence: o.sequence ?? COOLDOWN });
+        b.addInput(utxo(c.lockingBytecode, 10_000n, tok(50n)), c.unlock.manage());
     });
     if (o.extraInput === 'unlisted-bin') {
         const c = binV4Contract(BIN, params(99), net);
-        b.addInput(utxo(c.lockingBytecode, 50_000n, tok(50n)), c.unlock.manage(), { sequence: COOLDOWN });
+        b.addInput(utxo(c.lockingBytecode, 50_000n, tok(50n)), c.unlock.manage());
     }
     b.addInput(utxo(KEEPER.lock, 5_000n), KEEPER.template.unlockP2PKH());
     outs.forEach((p, j) => b.addOutput({
@@ -86,7 +91,7 @@ export function run() {
 
     section('S3 · sizes');
     const mgrBytes = hexToBin(MANAGER.bytecode).length;
-    check('manager redeem script (incl. the 157-byte bin body)', mgrBytes < 10_000, `${mgrBytes} B`);
+    check('manager redeem script (incl. the 160-byte bin body)', mgrBytes < 10_000, `${mgrBytes} B`);
     out.managerRedeemBytes = mgrBytes;
 
     section('S3 · the draft enforces its rules (so the cost is of a real check)');
@@ -99,7 +104,10 @@ export function run() {
     expectReject('signed by someone other than the keeper', () => manage(2, { signer: ATTACKER }), { at: 0 });
     expectReject('an unlisted bin of the position slipped in', () => manage(2, { extraInput: 'unlisted-bin' }), { at: 0 });
     expectReject('bin manage() with no manager at input 0', () => manage(2, { noManager: true }), { at: 0 });
-    expectReject('bin younger than its cooldown', () => manage(2, { sequence: COOLDOWN - 1 }), { at: 1 });
+    expectReject('bin managed before its manageAfter height (locktime one block early)', () => manage(2, { inAfter: NOW + 1 }), { at: 1 });
+    expectReject('new bins open to the next manage too soon (cooldown − 1)', () => manage(2, { nextAfter: NOW + COOLDOWN - 1 }), { at: 0 });
+    expectAccept('new bins open exactly one cooldown later', () => manage(2, { nextAfter: NOW + COOLDOWN }));
+    expectReject('locktime given as a time, not a height', () => manage(2, { locktime: 1_800_000_000, inAfter: 0, nextAfter: 1_800_000_010 }), { at: 0 });
 
     section('S3 · cost as n grows');
     const rows: Record<number, unknown> = {};

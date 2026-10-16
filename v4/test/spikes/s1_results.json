@@ -1,20 +1,20 @@
 {
-  "redeemBytes": 295,
-  "prefixBytes": 138,
-  "bodyBytes": 157,
-  "binInputBytes": 342,
+  "redeemBytes": 300,
+  "prefixBytes": 140,
+  "bodyBytes": 160,
+  "binInputBytes": 347,
   "binOutputBytes": 44,
-  "unlockingBytes": 299,
-  "opCost": 18353,
-  "maxOpCost": 272000,
+  "unlockingBytes": 304,
+  "opCost": 18664,
+  "maxOpCost": 276000,
   "sweepSizes": {
-    "1": 640,
-    "2": 1026,
-    "8": 3344,
-    "16": 6432,
-    "24": 9520
+    "1": 645,
+    "2": 1036,
+    "8": 3384,
+    "16": 6512,
+    "24": 9640
   },
-  "bytesPerBinCrossed": 386.0869565217391,
+  "bytesPerBinCrossed": 391.0869565217391,
   "binOutputBytesWithToken": 79,
-  "bytesPerBinCrossedSell": 421
+  "bytesPerBinCrossedSell": 426
 }

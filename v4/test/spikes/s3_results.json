@@ -1,43 +1,43 @@
 {
-  "managerRedeemBytes": 742,
+  "managerRedeemBytes": 796,
   "byN": {
     "1": {
-      "size": 1627,
-      "opCost": 128910,
-      "maxOpCost": 815200,
-      "unlocking": 978
+      "size": 1693,
+      "opCost": 137081,
+      "maxOpCost": 864000,
+      "unlocking": 1039
     },
     "4": {
-      "size": 3084,
-      "opCost": 255516,
-      "maxOpCost": 970400,
-      "unlocking": 1172
+      "size": 3177,
+      "opCost": 273524,
+      "maxOpCost": 1028800,
+      "unlocking": 1245
     },
     "8": {
-      "size": 5026,
-      "opCost": 428844,
-      "maxOpCost": 1176800,
-      "unlocking": 1430
+      "size": 5155,
+      "opCost": 460248,
+      "maxOpCost": 1248000,
+      "unlocking": 1519
     },
     "16": {
-      "size": 8906,
-      "opCost": 790860,
-      "maxOpCost": 1586400,
-      "unlocking": 1942
+      "size": 9107,
+      "opCost": 850016,
+      "maxOpCost": 1683200,
+      "unlocking": 2063
     },
     "32": {
-      "size": 16666,
-      "opCost": 1576332,
-      "maxOpCost": 2405600,
-      "unlocking": 2966
+      "size": 17011,
+      "opCost": 1694832,
+      "maxOpCost": 2553600,
+      "unlocking": 3151
     },
     "64": {
-      "size": 32186,
-      "opCost": 3393036,
-      "maxOpCost": 4044000,
-      "unlocking": 5014
+      "size": 32819,
+      "opCost": 3645584,
+      "maxOpCost": 4294400,
+      "unlocking": 5327
     }
   },
-  "maxBinsPerCall": 102,
-  "limitAtNext": "Unable to verify transaction: error in evaluating input index 0: Program attempted an operation that would exceed the operation cost density limit. Maximum operation cost: 6040800 (density control len"
+  "maxBinsPerCall": 99,
+  "limitAtNext": "Unable to verify transaction: error in evaluating input index 0: Program attempted an operation that would exceed the operation cost density limit. Maximum operation cost: 6252800 (density control len"
 }

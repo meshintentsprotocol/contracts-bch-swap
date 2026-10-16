@@ -22,7 +22,7 @@ const OWNER_CAT = TOKEN_B;
 export const binParams = (k: number, over: Partial<BinV4Params> = {}): BinV4Params => ({
     tokenCat: TOKEN_A, ownerCat: OWNER_CAT,
     bidNum: BigInt(1990 + 10 * k), bidDen: 1n, askNum: BigInt(2000 + 10 * k), askDen: 1n,
-    managerHash: 'cd'.repeat(32), cooldown: 6, ...over,
+    managerHash: 'cd'.repeat(32), manageAfter: 6, ...over,
 });
 
 /** Trader buys all `tokens` from each of n bins at their ask. */
@@ -58,7 +58,7 @@ export function run() {
 
     section('S1 · encoding');
     const c0 = binV4Contract(BIN, binParams(0), net);
-    const c1 = binV4Contract(BIN, binParams(7, { cooldown: 300, managerHash: '00'.repeat(32), bidNum: 1n, askNum: (1n << 62n) }), net);
+    const c1 = binV4Contract(BIN, binParams(7, { manageAfter: 300, managerHash: '00'.repeat(32), bidNum: 1n, askNum: (1n << 62n) }), net);
     const r0 = redeemBytes(c0), r1 = redeemBytes(c1);
     const body = binV4Body(BIN, net);
     check('redeem script length is the same for any parameters', r0.length === r1.length, `${r0.length} B`);

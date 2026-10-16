@@ -1,0 +1,63 @@
+pragma cashscript ^0.14.0;
+
+import "../lib/bin.cash";
+
+// MeshBinV4 with a fee schedule by height (e.g. a launch range whose fee
+// falls as it matures). Three tiers, fees in bps on top of the bin's prices:
+//   tier 0: fee0, always open
+//   tier 1: fee1, needs tx.time ≥ h1
+//   tier 2: fee2, needs tx.time ≥ h2
+// The trader names the tier; a later tier is only usable once its height has
+// passed, so lower fees open later (fee0 ≥ fee1 ≥ fee2 is the encoder's rule).
+//   buys  (dt < 0): ds·askDen·10000 + dt·askNum·(10000 + fee) ≥ 0
+//   sells (dt ≥ 0): ds·bidDen·10000 + dt·bidNum·(10000 − fee) ≥ 0
+contract MeshBinV4FeeSchedule(
+    bytes32 tokenCat,
+    bytes8 bidNum, bytes8 bidDen,
+    bytes8 askNum, bytes8 askDen,
+    bytes32 ownerCat,
+    bytes32 managerHash,
+    bytes4 manageAfter,
+    bytes2 fee0,
+    bytes4 h1, bytes2 fee1,
+    bytes4 h2, bytes2 fee2
+) {
+    function fill(int tier) {
+        int dt, int ds = binDeltas(tokenCat);
+        bytes f = fee0;
+        if (tier == 1) {
+            require(tx.time >= int(h1));
+            f = fee1;
+        } else if (tier == 2) {
+            require(tx.time >= int(h2));
+            f = fee2;
+        } else {
+            require(tier == 0);
+        }
+        int fee = int(f);
+        require(within(fee, 0, 10000));
+
+        bytes num = bidNum;
+        bytes den = bidDen;
+        int mul = 10000 - fee;
+        if (dt < 0) {
+            num = askNum;
+            den = askDen;
+            mul = 10000 + fee;
+        }
+        int n = int(num);
+        int d = int(den);
+        require(min(n, d) > 0);
+        require(ds * d * 10000 + dt * n * mul >= 0);
+        require(int(askNum) * int(bidDen) >= int(bidNum) * int(askDen));
+    }
+
+    function owner(int k) {
+        require(ownerOk(k, ownerCat));
+    }
+
+    function manage() {
+        require(managerAt0(managerHash));
+        require(tx.time >= int(manageAfter));
+    }
+}

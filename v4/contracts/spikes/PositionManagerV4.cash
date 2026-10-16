@@ -6,12 +6,17 @@ pragma cashscript ^0.14.0;
 // Keeper rules live in this contract's own parameters, so a bin's managerHash
 // (hash256 of this redeem script) commits to them: changing the keeper or its
 // limits means the owner moves the bins to a new manager. No config UTXO, no
-// extra bytes per bin (decision D4, option "manager parameters").
+// extra bytes per bin (DECISIONS D4).
+//
+// Rate limit (DECISIONS D10): every new bin gets manageAfter ≥ locktime +
+// cooldown, and a bin's manage() needs locktime ≥ its manageAfter. Fills keep
+// the bytecode, so trading doesn't move the next allowed manage.
 //
 // Unlocking data (keeper-supplied, all checked):
-//   shared    = tokenCat 32 ‖ ownerCat 32 ‖ cooldown 2   (same for every bin)
-//   pricesIn  = n × (askDen ‖ askNum ‖ bidDen ‖ bidNum), 8 B each: bins at inputs 1..n
-//   pricesOut = m × the same: new bins at outputs 0..m-1
+//   shared    = tokenCat 32 ‖ ownerCat 32                 (same for every bin)
+//   pricesIn  = n × (askDen ‖ askNum ‖ bidDen ‖ bidNum ‖ manageAfter): bins at inputs 1..n
+//   pricesOut = m × (askDen ‖ askNum ‖ bidDen ‖ bidNum): new bins at outputs 0..m-1
+//   nextAfter = manageAfter of every new bin (4 B)
 // Each listed bin is identified by rebuilding P2SH32(hash256(prefix ‖ binBody))
 // with managerHash = hash256(this.activeBytecode). Every other input must be
 // P2PKH, so no unlisted bin (P2SH) can be spent through manage().
@@ -19,35 +24,36 @@ pragma cashscript ^0.14.0;
 // The four price pushes of a bin's parameter prefix (askDen first: last argument first).
 function pricePushes(bytes rec) returns (bytes) {
     return 0x08 + rec.split(8)[0] + 0x08 + rec.split(8)[1].split(8)[0]
-         + 0x08 + rec.split(16)[1].split(8)[0] + 0x08 + rec.split(24)[1];
+         + 0x08 + rec.split(16)[1].split(8)[0] + 0x08 + rec.split(24)[1].split(8)[0];
 }
 
 contract PositionManagerV4(
     bytes binBody,
     bytes20 keeperPkh,
     bytes8 feeCap,
+    bytes4 cooldown,
     bytes8 floorNum, bytes8 floorDen,
     bytes8 ceilNum, bytes8 ceilDen
 ) {
-    function manage(bytes shared, bytes pricesIn, bytes pricesOut, pubkey keeperPk, sig keeperSig) {
+    function manage(bytes shared, bytes pricesIn, bytes pricesOut, bytes nextAfter, pubkey keeperPk, sig keeperSig) {
         require(this.activeInputIndex == 0);
         require(hash160(keeperPk) == keeperPkh);
         require(checkSig(keeperSig, keeperPk));
 
-        require(shared.length == 66);
+        require(shared.length == 64);
         bytes tokenCat = shared.split(32)[0];
-        bytes cooldown = shared.split(64)[1];
-        bytes head = 0x02 + cooldown + 0x20 + hash256(this.activeBytecode) + 0x20 + shared.split(32)[1].split(32)[0];
+        bytes mid = 0x20 + hash256(this.activeBytecode) + 0x20 + shared.split(32)[1];
         bytes tail = 0x20 + tokenCat + binBody;
 
         // ── Bins in: inputs 1..n ────────────────────────────────────────────
-        require(pricesIn.length % 32 == 0);
-        int n = pricesIn.length / 32;
+        require(pricesIn.length % 36 == 0);
+        int n = pricesIn.length / 36;
         require(n >= 1);
         int satsIn = 0;
         int tokIn = 0;
         for (int k = 0; k < n; k++) {
-            bytes rec = pricesIn.split(k * 32)[1].split(32)[0];
+            bytes rec = pricesIn.split(k * 36)[1].split(36)[0];
+            bytes head = 0x04 + rec.split(32)[1] + mid;
             require(tx.inputs[k + 1].lockingBytecode == new LockingBytecodeP2SH32(hash256(head + pricePushes(rec) + tail)));
             bytes cIn = tx.inputs[k + 1].tokenCategory;
             require(cIn == tokenCat || cIn == 0x);
@@ -62,6 +68,12 @@ contract PositionManagerV4(
             require(lb.split(3)[0] == 0x76a914);
         }
 
+        // ── Next allowed manage: a block height at least cooldown after this one ─
+        require(nextAfter.length == 4);
+        require(tx.locktime < 500000000);
+        require(int(nextAfter) >= tx.locktime + int(cooldown));
+        bytes outHead = 0x04 + nextAfter + mid;
+
         // ── Bins out: outputs 0..m-1, same position, prices within bounds ────
         require(pricesOut.length % 32 == 0);
         int m = pricesOut.length / 32;
@@ -74,7 +86,7 @@ contract PositionManagerV4(
         int cD = int(ceilDen);
         for (int j = 0; j < m; j++) {
             bytes rec = pricesOut.split(j * 32)[1].split(32)[0];
-            require(tx.outputs[j].lockingBytecode == new LockingBytecodeP2SH32(hash256(head + pricePushes(rec) + tail)));
+            require(tx.outputs[j].lockingBytecode == new LockingBytecodeP2SH32(hash256(outHead + pricePushes(rec) + tail)));
             bytes cOut = tx.outputs[j].tokenCategory;
             require(cOut == tokenCat || cOut == 0x);
             require(tx.outputs[j].nftCommitment == 0x);

@@ -1,31 +1,37 @@
 pragma cashscript ^0.14.0;
 
+import "./lib/bin.cash";
+
 // =============================================================================
 // MeshBinV4: one price level of a position. Holds BCH and the pair's token and
 // flips in place: buys and sells recreate the same UTXO at the same index.
+// Spec: v4/docs/MeshBinV4.md. Decisions: docs-site LPS/v4plan/DECISIONS.md.
 // =============================================================================
 //
-// The bin is one input i and one output i with identical locking bytecode.
-// Amounts are derived from the transaction, never passed in:
+// The bin is input i and output i with identical locking bytecode. Amounts
+// are derived from the transaction, never passed in:
 //   dt = tokens out − tokens in        ds = sats out − sats in
 // Value at the bin's own price may not fall:
-//   dt < 0  (trader buys tokens)   ds·askDen + dt·askNum ≥ 0
-//   dt ≥ 0  (trader sells, or a top-up)   ds·bidDen + dt·bidNum ≥ 0
-// The inequality is exact integer maths (no division), so any rounding is the
-// trader's loss, never the bin's.
+//   dt < 0  (trader buys tokens)            ds·askDen + dt·askNum ≥ 0
+//   dt ≥ 0  (trader sells, or a top-up)     ds·bidDen + dt·bidNum ≥ 0
+// Exact integer maths with no division, so any rounding is the trader's loss.
+// The chosen side's num and den must be > 0, and ask ≥ bid, so a misconfigured
+// bin can't be drained.
 //
 // Parameters are fixed-width pushes (no 1-byte values, which minimal-push rules
-// would turn into OP_N), so the parameter prefix of the redeem script always
-// has the same length and the manager can rebuild any bin's address from
-// (params ‖ body). Categories are in the VM's byte order.
+// would turn into OP_N), so the redeem script's parameter prefix is always 140
+// bytes and the manager can rebuild any bin's address from (params ‖ body).
+// Categories are in the VM's byte order. Integers are little-endian.
 //
 // Paths:
-//   fill()      anyone, rules above
-//   owner(k)    input k carries an NFT of ownerCat (category, any capability,
-//               non-empty commitment so a fungible token of the category can't
-//               pass); no output rules
+//   fill()      anyone; the rules above
+//   owner(k)    input k carries an NFT of ownerCat: category (any capability)
+//               and a non-empty commitment, so a fungible token of the category
+//               can't pass. No output rules (withdraw, reprice, move)
 //   manage()    input 0 is the position manager (P2SH32 of managerHash) and the
-//               bin is at least `cooldown` blocks old; the manager checks the rest
+//               transaction's locktime is at least manageAfter (a block height).
+//               An absolute height, not the UTXO's age: fills would reset an age
+//               (DECISIONS D10). The manager checks everything else
 // =============================================================================
 
 contract MeshBinV4(
@@ -34,44 +40,30 @@ contract MeshBinV4(
     bytes8 askNum, bytes8 askDen,
     bytes32 ownerCat,
     bytes32 managerHash,
-    bytes2 cooldown
+    bytes4 manageAfter
 ) {
     function fill() {
-        int i = this.activeInputIndex;
-        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
-
-        // Only the pair's token (fungible), or no token. A mutable or minting NFT
-        // adds a capability byte and fails the equality; an immutable NFT with a
-        // commitment fails the commitment check.
-        bytes inCat = tx.inputs[i].tokenCategory;
-        bytes outCat = tx.outputs[i].tokenCategory;
-        require(inCat == tokenCat || inCat == 0x);
-        require(outCat == tokenCat || outCat == 0x);
-        require(tx.outputs[i].nftCommitment == 0x);
-        require(tx.outputs[i].value >= 1000);
-
-        int dt = tx.outputs[i].tokenAmount - tx.inputs[i].tokenAmount;
-        int ds = tx.outputs[i].value - tx.inputs[i].value;
+        int dt, int ds = binDeltas(tokenCat);
         bytes num = bidNum;
         bytes den = bidDen;
         if (dt < 0) {
             num = askNum;
             den = askDen;
         }
+        int n = int(num);
         int d = int(den);
-        require(d > 0);
-        require(ds * d + dt * int(num) >= 0);
+        require(min(n, d) > 0);
+        require(ds * d + dt * n >= 0);
         // ask ≥ bid, or a round trip through the bin would drain it.
         require(int(askNum) * int(bidDen) >= int(bidNum) * int(askDen));
     }
 
     function owner(int k) {
-        require(tx.inputs[k].tokenCategory.split(32)[0] == ownerCat);
-        require(tx.inputs[k].nftCommitment.length > 0);
+        require(ownerOk(k, ownerCat));
     }
 
     function manage() {
-        require(tx.inputs[0].lockingBytecode == new LockingBytecodeP2SH32(managerHash));
-        require(this.age >= int(cooldown));
+        require(managerAt0(managerHash));
+        require(tx.time >= int(manageAfter));
     }
 }

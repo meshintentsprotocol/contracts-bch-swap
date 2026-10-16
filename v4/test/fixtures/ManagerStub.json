@@ -1,0 +1,29 @@
+{
+  "contractName": "ManagerStub",
+  "constructorInputs": [
+    { "name": "salt", "type": "bytes32" }
+  ],
+  "abi": [
+    { "name": "go", "inputs": [] }
+  ],
+  "bytecode": "OP_SIZE OP_NIP 20 OP_NUMEQUAL",
+  "source": "pragma cashscript ^0.14.0;\n\n// Test stand-in for a position manager: any P2SH32 whose hash a bin names.\n// Anyone can spend it; the bin's manage() only checks that it sits at input 0.\ncontract ManagerStub(bytes32 salt) {\n    function go() {\n        require(salt.length == 32);\n    }\n}\n",
+  "fingerprint": "07359fa5600dcaa0a9c582b428cdad5a3a9c63ac13f44b3503eaf31b540edc8e",
+  "debug": {
+    "bytecode": "827701209c",
+    "sourceMap": "7:16:7:27:1;;:31::33:0;:8::35:1",
+    "logs": [],
+    "requires": [
+      { "ip": 5, "line": 7 }
+    ]
+  },
+  "compiler": {
+    "name": "cashc",
+    "version": "0.14.0",
+    "options": {
+      "enforceFunctionParameterTypes": true,
+      "enforceLocktimeGuard": true
+    }
+  },
+  "updatedAt": "2026-10-16T10:34:47.087Z"
+}

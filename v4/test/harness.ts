@@ -144,6 +144,20 @@ export interface RejectOptions {
     reason?: RegExp;
     /** Accept a standardness (policy) failure as the rejection. Off by default. */
     policy?: boolean;
+    /**
+     * The require() that must be the one failing, matched against its source
+     * text. Attributed by re-running the transaction in CashScript's own debug
+     * VM (a second, independent evaluator): if that one ACCEPTS, it's a failure.
+     */
+    rule?: RegExp | string;
+}
+
+/** Source text of the require() that fails, per CashScript's debugger; 'ACCEPTED' if it doesn't fail. */
+export function failingStatement(b: TransactionBuilder): string {
+    try { b.debug(); return 'ACCEPTED'; } catch (e: any) {
+        const m = /Failing statement: (.*)/.exec(e?.message ?? '');
+        return m ? m[1]!.trim() : `(${e?.constructor?.name}: ${short(e?.message ?? String(e))})`;
+    }
 }
 
 export function expectReject(name: string, build: () => TransactionBuilder, opts: RejectOptions = {}): void {
@@ -162,7 +176,15 @@ export function expectReject(name: string, build: () => TransactionBuilder, opts
         if (!m || m.ok) { fail(`REJECT  ${name}`, `input ${opts.at} PASSED on its own; the rejection came from elsewhere: ${short(r)}`); return; }
     }
     if (opts.reason && !opts.reason.test(r)) { fail(`REJECT  ${name}`, `rejected for an unexpected reason: ${short(r)}`); return; }
+    let stmt = '';
+    if (opts.rule) {
+        stmt = failingStatement(build());
+        if (stmt === 'ACCEPTED') { fail(`REJECT  ${name}`, 'DANGER: CashScript\'s debug VM ACCEPTED what libauth rejected (evaluators disagree)'); return; }
+        const hit = typeof opts.rule === 'string' ? stmt.includes(opts.rule) : opts.rule.test(stmt);
+        if (!hit) { fail(`REJECT  ${name}`, `failed at the wrong rule: ${stmt}  (expected ${opts.rule})`); return; }
+    }
     pass(`REJECT  ${name}`);
+    if (process.env.V4_REASONS) console.log(`        ↳ ${stmt || short(r).replace(/^Unable to verify (standard )?transaction: /, '').slice(0, 170)}`);
 }
 
 export function check(name: string, ok: boolean, detail = ''): void {

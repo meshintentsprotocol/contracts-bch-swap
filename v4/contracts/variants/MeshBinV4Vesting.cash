@@ -1,0 +1,40 @@
+pragma cashscript ^0.14.0;
+
+import "../lib/bin.cash";
+
+// MeshBinV4, vesting: the owner path opens only at block height unlockHeight
+// (tx.time ≥ unlockHeight). Trading and the manager work as in MeshBinV4.
+contract MeshBinV4Vesting(
+    bytes32 tokenCat,
+    bytes8 bidNum, bytes8 bidDen,
+    bytes8 askNum, bytes8 askDen,
+    bytes32 ownerCat,
+    bytes32 managerHash,
+    bytes4 manageAfter,
+    bytes4 unlockHeight
+) {
+    function fill() {
+        int dt, int ds = binDeltas(tokenCat);
+        bytes num = bidNum;
+        bytes den = bidDen;
+        if (dt < 0) {
+            num = askNum;
+            den = askDen;
+        }
+        int n = int(num);
+        int d = int(den);
+        require(min(n, d) > 0);
+        require(ds * d + dt * n >= 0);
+        require(int(askNum) * int(bidDen) >= int(bidNum) * int(askDen));
+    }
+
+    function owner(int k) {
+        require(ownerOk(k, ownerCat));
+        require(tx.time >= int(unlockHeight));
+    }
+
+    function manage() {
+        require(managerAt0(managerHash));
+        require(tx.time >= int(manageAfter));
+    }
+}

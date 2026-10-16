@@ -1,0 +1,37 @@
+pragma cashscript ^0.14.0;
+
+import "../lib/bin.cash";
+
+// MeshBinV4, locked: no owner path. Permanent liquidity: the bin trades
+// forever and its spread compounds, but nobody can withdraw it. A manager
+// (if any) can still move it, conserving value. Same parameters as MeshBinV4.
+contract MeshBinV4Locked(
+    bytes32 tokenCat,
+    bytes8 bidNum, bytes8 bidDen,
+    bytes8 askNum, bytes8 askDen,
+    bytes32 ownerCat,
+    bytes32 managerHash,
+    bytes4 manageAfter
+) {
+    function fill() {
+        int dt, int ds = binDeltas(tokenCat);
+        bytes num = bidNum;
+        bytes den = bidDen;
+        if (dt < 0) {
+            num = askNum;
+            den = askDen;
+        }
+        int n = int(num);
+        int d = int(den);
+        require(min(n, d) > 0);
+        require(ds * d + dt * n >= 0);
+        require(int(askNum) * int(bidDen) >= int(bidNum) * int(askDen));
+        // ownerCat stays a parameter so locked bins index with their position.
+        require(ownerCat.length == 32);
+    }
+
+    function manage() {
+        require(managerAt0(managerHash));
+        require(tx.time >= int(manageAfter));
+    }
+}

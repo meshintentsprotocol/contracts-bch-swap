@@ -1,0 +1,9 @@
+pragma cashscript ^0.14.0;
+
+// Test stand-in for a position manager: any P2SH32 whose hash a bin names.
+// Anyone can spend it; the bin's manage() only checks that it sits at input 0.
+contract ManagerStub(bytes32 salt) {
+    function go() {
+        require(salt.length == 32);
+    }
+}

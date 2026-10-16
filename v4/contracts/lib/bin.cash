@@ -1,0 +1,38 @@
+pragma cashscript ^0.14.0;
+
+// Rules every MeshBinV4 variant shares. Each helper is called once per path,
+// so the compiler inlines it: the variants get identical checks at no cost.
+
+// The bin at input i is recreated at output i with the same bytecode, holds
+// only the pair's fungible token (or no token) and no NFT commitment, and keeps
+// at least 1,000 sats. Returns (dt, ds) = (tokens out − in, sats out − in).
+//
+// A mutable or minting NFT adds a capability byte to the category and fails
+// the equality; an immutable NFT with a commitment fails the commitment check.
+// An immutable NFT with an empty commitment is invisible to introspection and
+// can only ride along (it goes to the owner on withdraw).
+function binDeltas(bytes tokenCat) returns (int, int) {
+    int i = this.activeInputIndex;
+    require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+    bytes inCat = tx.inputs[i].tokenCategory;
+    bytes outCat = tx.outputs[i].tokenCategory;
+    require(inCat == tokenCat || inCat == 0x);
+    require(outCat == tokenCat || outCat == 0x);
+    require(tx.outputs[i].nftCommitment == 0x);
+    require(tx.outputs[i].value >= 1000);
+    return tx.outputs[i].tokenAmount - tx.inputs[i].tokenAmount, tx.outputs[i].value - tx.inputs[i].value;
+}
+
+// Input k carries an NFT of the position: the category (any capability) and a
+// non-empty commitment, so a fungible token of the category can't pass.
+function ownerOk(int k, bytes ownerCat) returns (bool) {
+    require(tx.inputs[k].tokenCategory.split(32)[0] == ownerCat);
+    return tx.inputs[k].nftCommitment.length > 0;
+}
+
+// Input 0 is the position manager.
+// (Callers require the result; tx.time can only appear in a require, so the
+// locktime check stays in the caller.)
+function managerAt0(bytes32 managerHash) returns (bool) {
+    return tx.inputs[0].lockingBytecode == new LockingBytecodeP2SH32(managerHash);
+}
