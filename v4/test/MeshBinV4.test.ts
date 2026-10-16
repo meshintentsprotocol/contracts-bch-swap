@@ -49,7 +49,7 @@ const R = {
     OUTCAT: 'require(outCat == tokenCat || outCat == 0x)',
     COMMIT: 'require(tx.outputs[i].nftCommitment == 0x)',
     MIN: 'require(tx.outputs[i].value >= 1000)',
-    OWNER_CAT: 'require(tx.inputs[k].tokenCategory.split(32)[0] == ownerCat)',
+    OWNER_CAT: 'require(cat.split(32)[0] == ownerCat)',
     OWNER_COMMIT: 'require(ownerOk(k, ownerCat))',     // ownerOk returns the commitment check
     OWNER_READ: 'ownerOk(k, ownerCat)',                // input k has no token at all: the category read fails inside ownerOk
     MGR: 'managerAt0(managerHash)',
@@ -192,7 +192,9 @@ export function run() {
     expectAccept('documented: a minting NFT of the category also passes (genesis must not leave one, N2)', withdraw(nft(POS, 'minting', POS_COMMIT)));
     expectReject('same commitment under another category', withdraw(nft(TOKEN_FAKE, 'mutable', POS_COMMIT), 1, ATTACKER), { at: 0, rule: R.OWNER_CAT });
     expectReject('a fungible token of the position category (no NFT)', withdraw(tok(1n, POS), 1, ATTACKER), { at: 0, rule: R.OWNER_COMMIT });
-    expectReject('a position-category NFT with an empty commitment', withdraw(nft(POS, 'mutable', ''), 1, ATTACKER), { at: 0, rule: R.OWNER_COMMIT });
+    expectAccept('mutable position NFT whose holder cleared the commitment still owns the bin (no self-lock)', withdraw(nft(POS, 'mutable', '')));
+    expectReject('an IMMUTABLE position-category NFT with an empty commitment (indistinguishable from a fungible token)', withdraw(nft(POS, 'none', ''), 1, ATTACKER), { at: 0, rule: R.OWNER_COMMIT });
+    expectReject('a fungible amount plus an immutable empty-commitment NFT of the category', withdraw({ amount: 5n, category: POS, nft: { capability: 'none', commitment: '' } }, 1, ATTACKER), { at: 0, rule: R.OWNER_COMMIT });
     expectReject('k points at an input without the NFT', withdraw(nft(POS, 'mutable', POS_COMMIT), 2), { at: 0, rule: R.OWNER_READ, reason: /OP_SPLIT|invalid transaction UTXO index/ });
     expectReject('k out of range', withdraw(nft(POS, 'mutable', POS_COMMIT), 9), { at: 0, rule: R.OWNER_READ, reason: /OP_SPLIT|invalid transaction UTXO index/ });
     expectReject('k points at the bin itself', withdraw(nft(POS, 'mutable', POS_COMMIT), 0), { at: 0, rule: R.OWNER_CAT });
@@ -220,7 +222,7 @@ export function run() {
 
     section('Sizes');
     const redeem = binArtifact().debug.bytecode.length / 2;
-    check('MeshBinV4 body size is the one in DECISIONS (160 B)', redeem === 160, `${redeem} B`);
+    check('MeshBinV4 body size is the one in the spec (167 B)', redeem === 167, `${redeem} B`);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

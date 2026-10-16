@@ -4,7 +4,7 @@ Updated 2026-10-16 (end of the phase 0 + phase 1 session). Read this first in a 
 
 ## Where we are
 
-**Phase 0 is closed and phase 1 (`MeshBinV4`) is built.** The phase 1 exit criteria are met: all VM suites are green, byte figures are published, and the spec is frozen for audit in `docs/MeshBinV4.md`. `npm test` in `v4/`: **270 passed, 0 failed**. `npm run typecheck` is clean.
+**Phases 0 and 1 are closed; phase 2 (position NFT) is built except its live chipnet run.** Specs: `docs/MeshBinV4.md` (1.1, frozen for audit) and `docs/PositionNft.md`. `npm test` in `v4/`: **350 passed, 0 failed**. `npm run typecheck` is clean.
 
 | Repo | State |
 |---|---|
@@ -28,7 +28,8 @@ Updated 2026-10-16 (end of the phase 0 + phase 1 session). Read this first in a 
 
 ## Key results (details in DECISIONS)
 
-- **391 B per bin crossed** (buying), 426 B (selling), against ~1,100 for V3. The fill uses 7 % of its op-cost budget.
+- **398 B per bin crossed** (buying), 433 B (selling), against ~1,100 for V3. The fill uses 7 % of its op-cost budget.
+- **D11 (phase 2):** the owner path accepts a mutable NFT with any commitment, so a holder can't lock their position by clearing it (+7 B).
 - P2S bin + validator: 244 B per bin, cheaper from 3 bins. Deferred to V4a.1 (D2).
 - Manager draft: 99 bins per call (op-cost bound).
 - **D10: the bin's `cooldown` (UTXO age) became an absolute `manageAfter` height**, because every fill resets a UTXO's age.
@@ -40,14 +41,12 @@ Updated 2026-10-16 (end of the phase 0 + phase 1 session). Read this first in a 
    - **D2: slim bins first.** The user briefly chose P2S first, then switched back after the safety review.
    - The rest: NFT-only ownership (D3), keeper rules in the manager (D4, V4b), no recovery (D6), `manageAfter` (D10); the oracle band is decided at phase 6 (D5).
    - P2S + validator stays a possible V4a.1 "fine-bin mode".
-2. **Phase 2: position NFT** (v4plan 01 §Phase 2; tests N1–N5 in 03 §2.2).
-   - Genesis rules: input 0 spends an output #0; exactly one mutable NFT with a **non-empty commitment**; no minting NFT, no fungible supply.
-   - 128-byte commitment layout (02 §3.2; the keeper fields can shrink now that D4 puts them in the manager).
-   - `positionNft.vectors.json`.
-   - The genesis + bins transaction as a VM test.
-   - BCMR metadata.
-   - A wallet showing the NFT on chipnet (Paytaca, Cashonize).
-3. **Phase 3: server V4a** in meshserver: port `v4_encode.ts` and the vectors (L3 parity in jest), index bins by `ownerCat`, add V4 legs to the router and executor, and add `scripts/check-v4-fills.ts` (V1–V8). A manage transaction can't also fill intents (height vs time locktime).
+2. **Phase 2: finish the live check.** Code, rules, BCMR and vectors are done (`test/position.ts`, `docs/PositionNft.md`, 78 checks). What's left needs the user:
+   - run `npx tsx tools/chipnet-position-genesis.ts genesis --broadcast` (dry run passes against chipnet; FUNDER_WIF from meshserver/.env), with `--to <their chipnet wallet token address>`;
+   - for named display, `--bcmr-url https://…` plus uploading `data/chipnet/<date>/bcmr-registry.json` to that URL;
+   - check the NFT in Paytaca or Cashonize;
+   - then `withdraw --broadcast` (only if the NFT stayed with the funder) for a live owner-path test.
+3. **Phase 3: server V4a** in meshserver: port `v4_encode.ts` and `position.ts` with both vector files (L3 parity in jest), register positions with `checkGenesis`, index bins by `ownerCat`, add V4 legs to the router and executor, and add `scripts/check-v4-fills.ts` (V1–V8). A manage transaction can't also fill intents (height vs time locktime).
 4. Phase 6 later: turn the S3 draft into `PositionManagerV4`. Consume the price list as it loops (its cost is quadratic now), use `gridPrice` for the K bound, and add tests M1–M10.
 
 ## Rules (from the user; these override defaults)

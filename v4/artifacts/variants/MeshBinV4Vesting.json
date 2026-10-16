@@ -21,12 +21,12 @@
     },
     { "name": "manage", "inputs": [] }
   ],
-  "bytecode": "OP_9 OP_PICK OP_0 OP_NUMEQUAL OP_IF OP_INPUTINDEX OP_DUP OP_OUTPUTBYTECODE OP_OVER OP_UTXOBYTECODE OP_EQUALVERIFY OP_DUP OP_UTXOTOKENCATEGORY OP_OVER OP_OUTPUTTOKENCATEGORY OP_OVER OP_4 OP_PICK OP_EQUAL OP_ROT OP_0 OP_EQUAL OP_BOOLOR OP_VERIFY OP_DUP OP_3 OP_ROLL OP_EQUAL OP_SWAP OP_0 OP_EQUAL OP_BOOLOR OP_VERIFY OP_DUP OP_OUTPUTTOKENCOMMITMENT OP_0 OP_EQUALVERIFY OP_DUP OP_OUTPUTVALUE e803 OP_GREATERTHANOREQUAL OP_VERIFY OP_DUP OP_OUTPUTTOKENAMOUNT OP_OVER OP_UTXOTOKENAMOUNT OP_SUB OP_OVER OP_OUTPUTVALUE OP_ROT OP_UTXOVALUE OP_SUB OP_2OVER OP_SWAP OP_3 OP_PICK OP_0 OP_LESSTHAN OP_IF OP_6 OP_PICK OP_ROT OP_DROP OP_SWAP OP_7 OP_PICK OP_NIP OP_ENDIF OP_SWAP OP_BIN2NUM OP_SWAP OP_BIN2NUM OP_2DUP OP_MIN OP_0 OP_GREATERTHAN OP_VERIFY OP_ROT OP_MUL OP_ROT OP_ROT OP_MUL OP_ADD OP_0 OP_GREATERTHANOREQUAL OP_VERIFY OP_ROT OP_BIN2NUM OP_ROT OP_BIN2NUM OP_MUL OP_SWAP OP_BIN2NUM OP_ROT OP_BIN2NUM OP_MUL OP_GREATERTHANOREQUAL OP_VERIFY OP_2DROP OP_2DROP OP_DROP OP_1 OP_ELSE OP_9 OP_PICK OP_1 OP_NUMEQUAL OP_IF OP_10 OP_ROLL OP_6 OP_ROLL OP_OVER OP_UTXOTOKENCATEGORY 20 OP_SPLIT OP_DROP OP_EQUALVERIFY OP_UTXOTOKENCOMMITMENT OP_SIZE OP_NIP OP_0 OP_GREATERTHAN OP_VERIFY OP_7 OP_ROLL OP_BIN2NUM OP_CHECKLOCKTIMEVERIFY OP_2DROP OP_2DROP OP_2DROP OP_2DROP OP_DROP OP_1 OP_ELSE OP_9 OP_ROLL OP_2 OP_NUMEQUALVERIFY OP_6 OP_ROLL OP_0 OP_UTXOBYTECODE aa20 OP_ROT OP_CAT 87 OP_CAT OP_EQUALVERIFY OP_6 OP_ROLL OP_BIN2NUM OP_CHECKLOCKTIMEVERIFY OP_2DROP OP_2DROP OP_2DROP OP_2DROP OP_1 OP_ENDIF OP_ENDIF",
+  "bytecode": "OP_9 OP_PICK OP_0 OP_NUMEQUAL OP_IF OP_INPUTINDEX OP_DUP OP_OUTPUTBYTECODE OP_OVER OP_UTXOBYTECODE OP_EQUALVERIFY OP_DUP OP_UTXOTOKENCATEGORY OP_OVER OP_OUTPUTTOKENCATEGORY OP_OVER OP_4 OP_PICK OP_EQUAL OP_ROT OP_0 OP_EQUAL OP_BOOLOR OP_VERIFY OP_DUP OP_3 OP_ROLL OP_EQUAL OP_SWAP OP_0 OP_EQUAL OP_BOOLOR OP_VERIFY OP_DUP OP_OUTPUTTOKENCOMMITMENT OP_0 OP_EQUALVERIFY OP_DUP OP_OUTPUTVALUE e803 OP_GREATERTHANOREQUAL OP_VERIFY OP_DUP OP_OUTPUTTOKENAMOUNT OP_OVER OP_UTXOTOKENAMOUNT OP_SUB OP_OVER OP_OUTPUTVALUE OP_ROT OP_UTXOVALUE OP_SUB OP_2OVER OP_SWAP OP_3 OP_PICK OP_0 OP_LESSTHAN OP_IF OP_6 OP_PICK OP_ROT OP_DROP OP_SWAP OP_7 OP_PICK OP_NIP OP_ENDIF OP_SWAP OP_BIN2NUM OP_SWAP OP_BIN2NUM OP_2DUP OP_MIN OP_0 OP_GREATERTHAN OP_VERIFY OP_ROT OP_MUL OP_ROT OP_ROT OP_MUL OP_ADD OP_0 OP_GREATERTHANOREQUAL OP_VERIFY OP_ROT OP_BIN2NUM OP_ROT OP_BIN2NUM OP_MUL OP_SWAP OP_BIN2NUM OP_ROT OP_BIN2NUM OP_MUL OP_GREATERTHANOREQUAL OP_VERIFY OP_2DROP OP_2DROP OP_DROP OP_1 OP_ELSE OP_9 OP_PICK OP_1 OP_NUMEQUAL OP_IF OP_10 OP_ROLL OP_6 OP_ROLL OP_OVER OP_UTXOTOKENCATEGORY OP_DUP 20 OP_SPLIT OP_DROP OP_ROT OP_EQUALVERIFY OP_SIZE OP_NIP OP_SWAP OP_UTXOTOKENCOMMITMENT OP_SIZE OP_NIP OP_ADD 20 OP_GREATERTHAN OP_VERIFY OP_7 OP_ROLL OP_BIN2NUM OP_CHECKLOCKTIMEVERIFY OP_2DROP OP_2DROP OP_2DROP OP_2DROP OP_DROP OP_1 OP_ELSE OP_9 OP_ROLL OP_2 OP_NUMEQUALVERIFY OP_6 OP_ROLL OP_0 OP_UTXOBYTECODE aa20 OP_ROT OP_CAT 87 OP_CAT OP_EQUALVERIFY OP_6 OP_ROLL OP_BIN2NUM OP_CHECKLOCKTIMEVERIFY OP_2DROP OP_2DROP OP_2DROP OP_2DROP OP_1 OP_ENDIF OP_ENDIF",
   "source": "pragma cashscript ^0.14.0;\n\nimport \"../lib/bin.cash\";\n\n// MeshBinV4, vesting: the owner path opens only at block height unlockHeight\n// (tx.time ≥ unlockHeight). Trading and the manager work as in MeshBinV4.\ncontract MeshBinV4Vesting(\n    bytes32 tokenCat,\n    bytes8 bidNum, bytes8 bidDen,\n    bytes8 askNum, bytes8 askDen,\n    bytes32 ownerCat,\n    bytes32 managerHash,\n    bytes4 manageAfter,\n    bytes4 unlockHeight\n) {\n    function fill() {\n        int dt, int ds = binDeltas(tokenCat);\n        bytes num = bidNum;\n        bytes den = bidDen;\n        if (dt < 0) {\n            num = askNum;\n            den = askDen;\n        }\n        int n = int(num);\n        int d = int(den);\n        require(min(n, d) > 0);\n        require(ds * d + dt * n >= 0);\n        require(int(askNum) * int(bidDen) >= int(bidNum) * int(askDen));\n    }\n\n    function owner(int k) {\n        require(ownerOk(k, ownerCat));\n        require(tx.time >= int(unlockHeight));\n    }\n\n    function manage() {\n        require(managerAt0(managerHash));\n        require(tx.time >= int(manageAfter));\n    }\n}\n",
-  "fingerprint": "bf317a186dd739bd4640beab37af58b5350c1a329865c5fc1f522767c653d20b",
+  "fingerprint": "7c84b934f8758b14db679401580852a8a7fffe1015547ef56adc8f642f92d5ba",
   "debug": {
-    "bytecode": "5979009c63c076cd78c78876ce78d1785479877b00879b6976537a877c00879b6976d2008876cc02e803a26976d378d09478cc7bc694707c5379009f6356797b757c577977687c817c816ea300a0697b957b7b959300a2697b817b81957c817b8195a2696d6d7551675979519c635a7a567a78ce01207f7588cf827700a069577a81b16d6d6d6d755167597a529d567a00c702aa207b7e01877e88567a81b16d6d6d6d516868",
-    "sourceMap": "16:4:29:5;;;;;17:25:17:44:1;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;18:20:19:26:0;;20:12:20:14;;:17::18;:12:::1;:20:23:9:0;21:18:21:24;;:12::25:1;;;22:18:22:24:0;;:12::25:1;20:20:23:9;24::24:23:0;:16::24:1;25:20:25:23:0;:16::24:1;26:20:26::0;:16::25:1;:28::29:0;:16:::1;:8::31;27:16:27:18:0;:::22:1;:25::27:0;:30::31;:25:::1;:16;:35::36:0;:16:::1;:8::38;28:20:28:26:0;:16::27:1;:34::40:0;:30::41:1;:16;:49::55:0;:45::56:1;:63::69:0;:59::70:1;:45;:16;:8::72;16:20:29:5;;;;:4;31::34::0;;;;;32:24:32:25;;:27::35;;:16::36:1;;;;;;;;;;;:8::38;33:31:33:43:0;;:27::44:1;:8::46;31:26:34:5;;;;;;:4;36::39::0;;;;37:27:37:38;;:16::39:1;;;;;;;:8::41;38:31:38:42:0;;:27::43:1;:8::45;36:22:39:5;;;;;7:0:40:1;",
+    "bytecode": "5979009c63c076cd78c78876ce78d1785479877b00879b6976537a877c00879b6976d2008876cc02e803a26976d378d09478cc7bc694707c5379009f6356797b757c577977687c817c816ea300a0697b957b7b959300a2697b817b81957c817b8195a2696d6d7551675979519c635a7a567a78ce7601207f757b8882777ccf8277930120a069577a81b16d6d6d6d755167597a529d567a00c702aa207b7e01877e88567a81b16d6d6d6d516868",
+    "sourceMap": "16:4:29:5;;;;;17:25:17:44:1;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;18:20:19:26:0;;20:12:20:14;;:17::18;:12:::1;:20:23:9:0;21:18:21:24;;:12::25:1;;;22:18:22:24:0;;:12::25:1;20:20:23:9;24::24:23:0;:16::24:1;25:20:25:23:0;:16::24:1;26:20:26::0;:16::25:1;:28::29:0;:16:::1;:8::31;27:16:27:18:0;:::22:1;:25::27:0;:30::31;:25:::1;:16;:35::36:0;:16:::1;:8::38;28:20:28:26:0;:16::27:1;:34::40:0;:30::41:1;:16;:49::55:0;:45::56:1;:63::69:0;:59::70:1;:45;:16;:8::72;16:20:29:5;;;;:4;31::34::0;;;;;32:24:32:25;;:27::35;;:16::36:1;;;;;;;;;;;;;;;;;:8::38;33:31:33:43:0;;:27::44:1;:8::46;31:26:34:5;;;;;;:4;36::39::0;;;;37:27:37:38;;:16::39:1;;;;;;;:8::41;38:31:38:42:0;;:27::43:1;:8::45;36:22:39:5;;;;;7:0:40:1;",
     "logs": [],
     "requires": [
       { "ip": 19, "line": 17 },
@@ -37,11 +37,11 @@
       { "ip": 85, "line": 26 },
       { "ip": 94, "line": 27 },
       { "ip": 106, "line": 28 },
-      { "ip": 126, "line": 32 },
-      { "ip": 132, "line": 32 },
-      { "ip": 136, "line": 33 },
-      { "ip": 157, "line": 37 },
-      { "ip": 161, "line": 38 }
+      { "ip": 128, "line": 32 },
+      { "ip": 138, "line": 32 },
+      { "ip": 142, "line": 33 },
+      { "ip": 163, "line": 37 },
+      { "ip": 167, "line": 38 }
     ],
     "functions": [
       {
@@ -67,12 +67,12 @@
           { "name": "k", "type": "int" },
           { "name": "ownerCat", "type": "bytes" }
         ],
-        "bytecode": "78ce01207f7588cf827700a0",
-        "sourceMap": "29:22:29:23;:12::38:1;:45::47:0;:12::48:1;:::51;:4::65;30:11:30:37;:::44;;:47::48:0;:11:::1",
+        "bytecode": "78ce7601207f757b8882777ccf8277930120a0",
+        "sourceMap": "32:26:32:27;:16::42:1;33:12:33:15:0;:22::24;:12::25:1;:::28;:32::40:0;:4::42:1;35:11:35:21;;:34::35:0;:24::50:1;:::57;;:11;:60::62:0;:11:::1",
         "sourceFile": "../lib/bin.cash",
         "logs": [],
         "requires": [
-          { "ip": 5, "line": 29 }
+          { "ip": 7, "line": 33 }
         ]
       },
       {
@@ -81,16 +81,16 @@
           { "name": "managerHash", "type": "bytes32" }
         ],
         "bytecode": "00c702aa207b7e01877e87",
-        "sourceMap": "37:21:37:22;:11::39:1;:43::81:0;:69::80;:43::81:1;;;:11",
+        "sourceMap": "42:21:42:22;:11::39:1;:43::81:0;:69::80;:43::81:1;;;:11",
         "sourceFile": "../lib/bin.cash",
         "logs": [],
         "requires": []
       }
     ],
     "sources": {
-      "../lib/bin.cash": "pragma cashscript ^0.14.0;\n\n// Rules every MeshBinV4 variant shares. Each helper is called once per path,\n// so the compiler inlines it: the variants get identical checks at no cost.\n\n// The bin at input i is recreated at output i with the same bytecode, holds\n// only the pair's fungible token (or no token) and no NFT commitment, and keeps\n// at least 1,000 sats. Returns (dt, ds) = (tokens out − in, sats out − in).\n//\n// A mutable or minting NFT adds a capability byte to the category and fails\n// the equality; an immutable NFT with a commitment fails the commitment check.\n// An immutable NFT with an empty commitment is invisible to introspection and\n// can only ride along (it goes to the owner on withdraw).\nfunction binDeltas(bytes tokenCat) returns (int, int) {\n    int i = this.activeInputIndex;\n    require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);\n    bytes inCat = tx.inputs[i].tokenCategory;\n    bytes outCat = tx.outputs[i].tokenCategory;\n    require(inCat == tokenCat || inCat == 0x);\n    require(outCat == tokenCat || outCat == 0x);\n    require(tx.outputs[i].nftCommitment == 0x);\n    require(tx.outputs[i].value >= 1000);\n    return tx.outputs[i].tokenAmount - tx.inputs[i].tokenAmount, tx.outputs[i].value - tx.inputs[i].value;\n}\n\n// Input k carries an NFT of the position: the category (any capability) and a\n// non-empty commitment, so a fungible token of the category can't pass.\nfunction ownerOk(int k, bytes ownerCat) returns (bool) {\n    require(tx.inputs[k].tokenCategory.split(32)[0] == ownerCat);\n    return tx.inputs[k].nftCommitment.length > 0;\n}\n\n// Input 0 is the position manager.\n// (Callers require the result; tx.time can only appear in a require, so the\n// locktime check stays in the caller.)\nfunction managerAt0(bytes32 managerHash) returns (bool) {\n    return tx.inputs[0].lockingBytecode == new LockingBytecodeP2SH32(managerHash);\n}\n"
+      "../lib/bin.cash": "pragma cashscript ^0.14.0;\n\n// Rules every MeshBinV4 variant shares. Each helper is called once per path,\n// so the compiler inlines it: the variants get identical checks at no cost.\n\n// The bin at input i is recreated at output i with the same bytecode, holds\n// only the pair's fungible token (or no token) and no NFT commitment, and keeps\n// at least 1,000 sats. Returns (dt, ds) = (tokens out − in, sats out − in).\n//\n// A mutable or minting NFT adds a capability byte to the category and fails\n// the equality; an immutable NFT with a commitment fails the commitment check.\n// An immutable NFT with an empty commitment is invisible to introspection and\n// can only ride along (it goes to the owner on withdraw).\nfunction binDeltas(bytes tokenCat) returns (int, int) {\n    int i = this.activeInputIndex;\n    require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);\n    bytes inCat = tx.inputs[i].tokenCategory;\n    bytes outCat = tx.outputs[i].tokenCategory;\n    require(inCat == tokenCat || inCat == 0x);\n    require(outCat == tokenCat || outCat == 0x);\n    require(tx.outputs[i].nftCommitment == 0x);\n    require(tx.outputs[i].value >= 1000);\n    return tx.outputs[i].tokenAmount - tx.inputs[i].tokenAmount, tx.outputs[i].value - tx.inputs[i].value;\n}\n\n// Input k carries an NFT of the position. A mutable or minting NFT shows its\n// capability byte (33-byte category), which a fungible token never has, so it\n// passes with any commitment: the holder can't lock the position by clearing\n// it. An immutable NFT looks like a fungible token to introspection, so it\n// must have a non-empty commitment.\nfunction ownerOk(int k, bytes ownerCat) returns (bool) {\n    bytes cat = tx.inputs[k].tokenCategory;\n    require(cat.split(32)[0] == ownerCat);\n    // 33 + any commitment, or 32 + a non-empty one; a fungible token gives 32 + 0.\n    return cat.length + tx.inputs[k].nftCommitment.length > 32;\n}\n\n// Input 0 is the position manager.\n// (Callers require the result; tx.time can only appear in a require, so the\n// locktime check stays in the caller.)\nfunction managerAt0(bytes32 managerHash) returns (bool) {\n    return tx.inputs[0].lockingBytecode == new LockingBytecodeP2SH32(managerHash);\n}\n"
     },
-    "inlineRanges": "14:60:binDeltas;121:131:ownerOk;150:157:managerAt0"
+    "inlineRanges": "14:60:binDeltas;121:137:ownerOk;156:163:managerAt0"
   },
   "compiler": {
     "name": "cashc",
@@ -100,5 +100,5 @@
       "enforceLocktimeGuard": true
     }
   },
-  "updatedAt": "2026-10-16T10:34:42.846Z"
+  "updatedAt": "2026-10-16T11:40:35.917Z"
 }

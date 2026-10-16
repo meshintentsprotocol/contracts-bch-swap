@@ -23,11 +23,16 @@ function binDeltas(bytes tokenCat) returns (int, int) {
     return tx.outputs[i].tokenAmount - tx.inputs[i].tokenAmount, tx.outputs[i].value - tx.inputs[i].value;
 }
 
-// Input k carries an NFT of the position: the category (any capability) and a
-// non-empty commitment, so a fungible token of the category can't pass.
+// Input k carries an NFT of the position. A mutable or minting NFT shows its
+// capability byte (33-byte category), which a fungible token never has, so it
+// passes with any commitment: the holder can't lock the position by clearing
+// it. An immutable NFT looks like a fungible token to introspection, so it
+// must have a non-empty commitment.
 function ownerOk(int k, bytes ownerCat) returns (bool) {
-    require(tx.inputs[k].tokenCategory.split(32)[0] == ownerCat);
-    return tx.inputs[k].nftCommitment.length > 0;
+    bytes cat = tx.inputs[k].tokenCategory;
+    require(cat.split(32)[0] == ownerCat);
+    // 33 + any commitment, or 32 + a non-empty one; a fungible token gives 32 + 0.
+    return cat.length + tx.inputs[k].nftCommitment.length > 32;
 }
 
 // Input 0 is the position manager.

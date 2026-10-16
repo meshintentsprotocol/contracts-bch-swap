@@ -12,6 +12,6 @@
   "gridBinRedeemBytes": 361,
   "gridBinBytesPerBinCrossed": 452.0869565217391,
   "gridBinFillOpCost": "69185 / 324800",
-  "slimBytesPerBinCrossed": 391.0869565217391,
+  "slimBytesPerBinCrossed": 398.0869565217391,
   "maxRelDeviationFromV3Grid": 1.7711832001054972e-11
 }

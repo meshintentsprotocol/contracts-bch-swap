@@ -9,6 +9,7 @@ import { run as binB } from './MeshBinV4.test.js';
 import { run as binOptions } from './MeshBinV4.options.test.js';
 import { run as binComposition } from './MeshBinV4.composition.test.js';
 import { run as binProperty } from './MeshBinV4.property.test.js';
+import { run as positionNft } from './PositionNft.test.js';
 import { run as s1 } from './spikes/s1_bin_bytes.js';
 import { run as s2 } from './spikes/s2_p2s_validator.js';
 import { run as s3 } from './spikes/s3_manager_cost.js';
@@ -21,6 +22,7 @@ const suites: Array<[string, () => void | Promise<void>]> = [
     ['MeshBinV4 · B10 options', binOptions],
     ['MeshBinV4 · B7 composition', binComposition],
     ['MeshBinV4 · L2 property, fuzz, mutants', binProperty],
+    ['Position NFT · N1–N5, BCMR, vectors', positionNft],
     ['spike S1 · slim bin bytes', s1],
     ['spike S2 · P2S bin + validator', s2],
     ['spike S3 · manager loop cost', s3],

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Version | 1 (phase 1), 2026-10-16 |
+| Version | 1.1, 2026-10-16. 1.1 changes the owner rule (phase 2: a mutable NFT owns with any commitment, so a holder can't lock the position by clearing it) |
 | Status | **Frozen for audit #1** unless a finding reopens it |
 | Source | `contracts/MeshBinV4.cash`, `contracts/lib/bin.cash`, `contracts/variants/*.cash` (cashc 0.14.0) |
 | Artifacts | `artifacts/MeshBinV4.json`, `artifacts/variants/*.json`, pinned by sha256 in `test/vectors/meshBinV4.vectors.json` |
@@ -30,7 +30,7 @@ P2SH32. The redeem script is the parameter pushes followed by the template body.
 | 7 | `managerHash` | bytes32 | script hash | `hash256` of the position manager's redeem script; 32 zero bytes = no manager |
 | 8 | `manageAfter` | bytes4 | LE, block height 0 … 499,999,999 | `manage()` is closed before this height |
 
-**Prefix (140 bytes):** `04 manageAfter · 20 managerHash · 20 ownerCat · 08 askDen · 08 askNum · 08 bidDen · 08 bidNum · 20 tokenCat`. Body: 160 bytes. Redeem script: 300 bytes.
+**Prefix (140 bytes):** `04 manageAfter · 20 managerHash · 20 ownerCat · 08 askDen · 08 askNum · 08 bidDen · 08 bidNum · 20 tokenCat`. Body: 167 bytes. Redeem script: 307 bytes.
 
 So anyone, including the manager on chain, can rebuild a bin's address from its parameters: `P2SH32(hash256(prefix ‖ body))`.
 
@@ -60,10 +60,10 @@ With `i` the bin's own input index:
 
 ### 3.2 `owner(int k)`: the position NFT holder
 
-1. `inputs[k].tokenCategory`, first 32 bytes, `== ownerCat` (any capability).
-2. `inputs[k].nftCommitment` is non-empty.
+1. `inputs[k].tokenCategory`, first 32 bytes, `== ownerCat`.
+2. `length(inputs[k].tokenCategory) + length(inputs[k].nftCommitment) > 32`: a mutable or minting NFT (33-byte category, the capability byte) passes with any commitment; an immutable NFT (32-byte category) needs a non-empty commitment.
 
-There are no output rules: withdraw, reprice, move, merge or split freely. Rule 2 stops a *fungible* token of `ownerCat` from passing. Genesis must therefore give the position NFT a non-empty commitment (it starts with a version byte), and must leave no minting NFT and no fungible supply (phase 2, N1–N3). A minting NFT of the category would also pass, by design: whoever holds one can mint owners anyway.
+There are no output rules: withdraw, reprice, move, merge or split freely. Rule 2 stops a *fungible* token of `ownerCat` from passing: it shows a 32-byte category and an empty commitment, like an immutable NFT with an empty commitment, which is therefore refused too. A mutable NFT can never lock its position, even if its holder clears the commitment. Genesis gives the NFT a non-empty commitment and leaves no minting NFT and no fungible supply (`test/position.ts` `checkGenesis`, N1–N3). A minting NFT of the category would also pass, by design: whoever holds one can mint owners anyway.
 
 ### 3.3 `manage()`: the position manager
 
@@ -80,11 +80,11 @@ Separate contracts, not flags: an unused flag would still cost bytes on every fi
 
 | Variant | Extra parameters (push order: last first) | Prefix · body · redeem | Rule changes |
 |---|---|---|---|
-| `MeshBinV4` | — | 140 · 160 · 300 | — |
+| `MeshBinV4` | — | 140 · 167 · 307 | — |
 | `MeshBinV4Locked` | — | 140 · 136 · 276 | No `owner` path: permanent liquidity. Fills and the manager still work |
-| `MeshBinV4Vesting` | `unlockHeight` bytes4 | 145 · 166 · 311 | `owner` also needs `tx.time ≥ unlockHeight` |
-| `MeshBinV4FeeSchedule` | `fee0` bytes2 · `h1` bytes4 · `fee1` bytes2 · `h2` bytes4 · `fee2` bytes2 | 159 · 240 · 399 | `fill(int tier)`. Tier 0 is always open; tier k > 0 needs `tx.time ≥ hk`; fee in [0, 10000). Rule 8 becomes `ds·d·10000 + dt·n·(10000 ± fee) ≥ 0` (+ on buys, − on sells). Encoder: fee0 ≥ fee1 ≥ fee2, h1 ≤ h2 |
-| `MeshBinV4SizeFee` | `baseFee` bytes2 · `slope` bytes2 · `refSize` bytes8 · `maxFee` bytes2 | 158 · 258 · 416 | `F = min(maxFee·ref, baseFee·ref + slope·max(0, |dt| − ref))`; rule 8 becomes `ds·d·10000·ref + dt·n·(10000·ref ± F) ≥ 0`. Exact (no division) |
+| `MeshBinV4Vesting` | `unlockHeight` bytes4 | 145 · 173 · 318 | `owner` also needs `tx.time ≥ unlockHeight` |
+| `MeshBinV4FeeSchedule` | `fee0` bytes2 · `h1` bytes4 · `fee1` bytes2 · `h2` bytes4 · `fee2` bytes2 | 159 · 247 · 406 | `fill(int tier)`. Tier 0 is always open; tier k > 0 needs `tx.time ≥ hk`; fee in [0, 10000). Rule 8 becomes `ds·d·10000 + dt·n·(10000 ± fee) ≥ 0` (+ on buys, − on sells). Encoder: fee0 ≥ fee1 ≥ fee2, h1 ≤ h2 |
+| `MeshBinV4SizeFee` | `baseFee` bytes2 · `slope` bytes2 · `refSize` bytes8 · `maxFee` bytes2 | 158 · 265 · 423 | `F = min(maxFee·ref, baseFee·ref + slope·max(0, |dt| − ref))`; rule 8 becomes `ds·d·10000·ref + dt·n·(10000·ref ± F) ≥ 0`. Exact (no division) |
 
 Note on the fee schedule: a time-based locktime can't satisfy `tx.time ≥ hk` when hk is a height. Tier 0 needs no locktime.
 
@@ -109,10 +109,10 @@ Every check is on index `i`, input 0 (manage) or input `k` (owner), so a bin com
 
 | | Bytes |
 |---|---|
-| Bin input (outpoint, sequence, unlocking 304) | 347 |
+| Bin input (outpoint, sequence, unlocking 311) | 354 |
 | Bin output, no token / with token | 44 / 79 |
-| **Per bin crossed** (24-bin sweep, buy / sell) | **391 / 426** (V3: ~1,100) |
-| Op cost of a fill | 18,664 of 276,000 (7 %) |
+| **Per bin crossed** (24-bin sweep, buy / sell) | **398 / 433** (V3: ~1,100) |
+| Op cost of a fill | 19,271 of 281,600 (7 %) |
 
 ## 8. What the server must check before funding a bin
 
@@ -130,7 +130,8 @@ Every check is on index `i`, input 0 (manage) or input `k` (owner), so a bin com
 |---|---|---|
 | Harness self-test | `test/selftest.ts` | 21 |
 | L3 vectors | `test/MeshBinV4.vectors.test.ts` | 34 |
-| B0–B9 | `test/MeshBinV4.test.ts` | 75 |
+| B0–B9 | `test/MeshBinV4.test.ts` | 77 |
+| Position NFT (N1–N5, BCMR, vectors) | `test/PositionNft.test.ts` | 78 |
 | B10 options | `test/MeshBinV4.options.test.ts` | 34 |
 | B7 composition | `test/MeshBinV4.composition.test.ts` | 8 |
 | L2 property, fuzz, mutants | `test/MeshBinV4.property.test.ts` | 400 random transactions per run (`V4_FUZZ_N` for more); 8 mutant bins must each be caught |

@@ -2,3 +2,6 @@
 # auditors must work from the exact compiled bytecode.
 !artifacts/
 !artifacts/*.json
+
+# live-run outputs (state files, BCMR registries)
+data/
