@@ -36,21 +36,19 @@ Updated 2026-10-16 (end of the phase 0 + phase 1 session). Read this first in a 
 
 ## Next steps, in order
 
-1. **Decisions are confirmed (2026-10-16).** The user chose **P2S bins + a shared validator for V4a, owner-only** (D2). They also chose NFT-only ownership (D3), keeper rules in the manager (D4, for V4b), no recovery (D6) and `manageAfter` (D10); the oracle band is decided at phase 6 (D5).
-2. **Reopen phase 1 for P2S** (DECISIONS "What the choices change"):
-   - productionise `MeshBinP2S` (177 B; fill via the validator at input 0, plus owner(k)) and `BinValidatorV4` (the slim bin's fill rules per recognised bin, with `pad` for budget);
-   - run B0–B10 through the validator, plus the validator-specific cases;
-   - add the encoder and vectors, and the fuzz and mutation tests.
-   - Keep the slim bin as the reference and for V4b.
-3. **Phase 2: position NFT** (v4plan 01 §Phase 2; tests N1–N5 in 03 §2.2).
+1. **Decisions are confirmed (2026-10-16).**
+   - **D2: slim bins first.** The user briefly chose P2S first, then switched back after the safety review.
+   - The rest: NFT-only ownership (D3), keeper rules in the manager (D4, V4b), no recovery (D6), `manageAfter` (D10); the oracle band is decided at phase 6 (D5).
+   - P2S + validator stays a possible V4a.1 "fine-bin mode".
+2. **Phase 2: position NFT** (v4plan 01 §Phase 2; tests N1–N5 in 03 §2.2).
    - Genesis rules: input 0 spends an output #0; exactly one mutable NFT with a **non-empty commitment**; no minting NFT, no fungible supply.
    - 128-byte commitment layout (02 §3.2; the keeper fields can shrink now that D4 puts them in the manager).
    - `positionNft.vectors.json`.
    - The genesis + bins transaction as a VM test.
    - BCMR metadata.
    - A wallet showing the NFT on chipnet (Paytaca, Cashonize).
-4. **Phase 3: server V4a** in meshserver: port `v4_encode.ts` and the vectors (L3 parity in jest), index bins by `ownerCat`, add V4 legs to the router and executor, and add `scripts/check-v4-fills.ts` (V1–V8). A manage transaction can't also fill intents (height vs time locktime).
-5. Phase 6 later: turn the S3 draft into `PositionManagerV4`. Consume the price list as it loops (its cost is quadratic now), use `gridPrice` for the K bound, and add tests M1–M10.
+3. **Phase 3: server V4a** in meshserver: port `v4_encode.ts` and the vectors (L3 parity in jest), index bins by `ownerCat`, add V4 legs to the router and executor, and add `scripts/check-v4-fills.ts` (V1–V8). A manage transaction can't also fill intents (height vs time locktime).
+4. Phase 6 later: turn the S3 draft into `PositionManagerV4`. Consume the price list as it loops (its cost is quadratic now), use `gridPrice` for the K bound, and add tests M1–M10.
 
 ## Rules (from the user; these override defaults)
 
