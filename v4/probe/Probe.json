@@ -1,0 +1,47 @@
+{
+  "contractName": "Probe",
+  "constructorInputs": [
+    { "name": "minTotal", "type": "int" }
+  ],
+  "abi": [
+    { "name": "spend", "inputs": [] }
+  ],
+  "bytecode": "OP_0 OP_0 OP_BEGIN OP_DUP OP_TXINPUTCOUNT OP_LESSTHAN OP_DUP OP_TOALTSTACK OP_IF OP_2DUP OP_UTXOVALUE OP_ADD OP_ROT OP_DROP OP_SWAP OP_1ADD OP_ENDIF OP_FROMALTSTACK OP_NOT OP_UNTIL OP_DROP OP_LESSTHANOREQUAL OP_VERIFY OP_TXOUTPUTCOUNT OP_1 OP_GREATERTHANOREQUAL",
+  "source": "pragma cashscript ^0.14.0;\n\n// Toolchain probe: a user-defined function and a loop over every input.\nfunction atLeast(int value, int floor) {\n    require(value >= floor);\n}\n\ncontract Probe(int minTotal) {\n    function spend() {\n        int total = 0;\n        for (int k = 0; k < tx.inputs.length; k++) {\n            total = total + tx.inputs[k].value;\n        }\n        atLeast(total, minTotal);\n        require(tx.outputs.length >= 1);\n    }\n}\n",
+  "fingerprint": "c7a94cd5bc944630989153acb5ce644ae61d1f4e5732644701443830b039cb1f",
+  "debug": {
+    "bytecode": "00006576c39f766b636ec6937b757c8b686c916675a169c451a2",
+    "sourceMap": "10:20:10:21;11:21:11:22;:8:13:9;:24:11:25;:28::44;:24:::1;;;:51:13:9:0;12:20:12:39;:28::46:1;:20;:12::47;;;11:46:11:49;:51:13:9;;:8;;;14::14:32;;15:16:15:33:0;:37::38;:8::40:1",
+    "logs": [],
+    "requires": [
+      { "ip": 23, "line": 14 },
+      { "ip": 27, "line": 15 }
+    ],
+    "sourceTags": "15:15:fu;16:19:lc;20:20:sc",
+    "functions": [
+      {
+        "name": "atLeast",
+        "inputs": [
+          { "name": "value", "type": "int" },
+          { "name": "floor", "type": "int" }
+        ],
+        "bytecode": "a269",
+        "sourceMap": "5:12:5:26:1;:4::28",
+        "logs": [],
+        "requires": [
+          { "ip": 1, "line": 5 }
+        ]
+      }
+    ],
+    "inlineRanges": "22:23:atLeast"
+  },
+  "compiler": {
+    "name": "cashc",
+    "version": "0.14.0",
+    "options": {
+      "enforceFunctionParameterTypes": true,
+      "enforceLocktimeGuard": true
+    }
+  },
+  "updatedAt": "2026-10-16T03:02:53.054Z"
+}

@@ -1,0 +1,22 @@
+{
+  "name": "mesh-v4-contracts",
+  "private": true,
+  "type": "module",
+  "description": "Mesh V4 covenants (MeshBinV4, PositionManagerV4) on CashScript 0.14 and the BCH 2026 VM. Isolated from the V3 contracts, which stay on cashc 0.12.1.",
+  "scripts": {
+    "build": "cashc contracts/MeshBinV4.cash -o artifacts/MeshBinV4.json && cashc contracts/PositionManagerV4.cash -o artifacts/PositionManagerV4.json",
+    "build:bin": "cashc contracts/MeshBinV4.cash -o artifacts/MeshBinV4.json",
+    "test": "tsx test/run_all.ts"
+  },
+  "dependencies": {
+    "@bitauth/libauth": "3.1.0-next.8",
+    "cashc": "0.14.0",
+    "cashscript": "0.14.0",
+    "@cashscript/utils": "0.14.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0"
+  }
+}

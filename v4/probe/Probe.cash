@@ -1,0 +1,17 @@
+pragma cashscript ^0.14.0;
+
+// Toolchain probe: a user-defined function and a loop over every input.
+function atLeast(int value, int floor) {
+    require(value >= floor);
+}
+
+contract Probe(int minTotal) {
+    function spend() {
+        int total = 0;
+        for (int k = 0; k < tx.inputs.length; k++) {
+            total = total + tx.inputs[k].value;
+        }
+        atLeast(total, minTotal);
+        require(tx.outputs.length >= 1);
+    }
+}

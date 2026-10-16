@@ -1,0 +1,4 @@
+# V4 artifacts ARE tracked (the repo-wide rule ignores artifacts/): the server and
+# auditors must work from the exact compiled bytecode.
+!artifacts/
+!artifacts/*.json
