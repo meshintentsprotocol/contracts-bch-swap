@@ -41,6 +41,19 @@ export function describe(p: BinV4Params) {
     const addrs = binV4Addresses(p, body);
     const net0 = c.address.startsWith('bchtest:') ? addrs.chipnet : addrs.mainnet;
     if (c.address !== net0.address || c.tokenAddress !== net0.tokenAddress) throw new Error('cashscript and libauth addresses differ');
+    // Unlocking bytecode CashScript itself builds for each path (no signatures, so any transaction will do):
+    // the server builds these by hand and must match byte for byte.
+    const ctx = { transaction: { version: 2, locktime: 0, inputs: [], outputs: [] } as any, sourceOutputs: [], inputIndex: 0 };
+    const u = (c as any).unlock;
+    const unlocking: Record<string, string> = {
+        fill: binToHex((v === 'feeSchedule' ? u.fill(1n) : u.fill()).generateUnlockingBytecode(ctx)),
+        manage: binToHex(u.manage().generateUnlockingBytecode(ctx)),
+    };
+    if (v === 'feeSchedule') unlocking.fillTier0 = binToHex(u.fill(0n).generateUnlockingBytecode(ctx));
+    if (v !== 'locked') {
+        unlocking.owner1 = binToHex(u.owner(1n).generateUnlockingBytecode(ctx));
+        unlocking.owner17 = binToHex(u.owner(17n).generateUnlockingBytecode(ctx));
+    }
     return {
         args: binV4Args(p).map((a) => a.slice(2)),
         redeemScriptHex: binToHex(redeem),
@@ -48,6 +61,7 @@ export function describe(p: BinV4Params) {
         scriptHash: hash,
         lockingBytecodeHex: `aa20${hash}87`,
         ...addrs,
+        unlocking,
     };
 }
 
