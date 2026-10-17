@@ -1,6 +1,6 @@
 # Mesh V4: handoff (where to pick up)
 
-Updated 2026-10-16 (phases 0–4 closed; phase 5 hardening next). Read this first in a new session. The plan is in `docs-site/docs/LPS/v4plan/` (01 phases, 02 contracts and CHIPs, 03 testing, 04 frontend) and the decisions are in **`v4plan/DECISIONS.md`**. Background is in `docs-site/docs/LPS/protocol discusions/` 06, 10 and 11.
+Updated 2026-10-17 (phases 0–4 closed; phase 5 under way; phase 6 keeper drafted+tested as spike; phase 7 products designed in v4plan/05). Read this first in a new session. The plan is in `docs-site/docs/LPS/v4plan/` (01 phases, 02 contracts and CHIPs, 03 testing, 04 frontend) and the decisions are in **`v4plan/DECISIONS.md`**. Background is in `docs-site/docs/LPS/protocol discusions/` 06, 10 and 11.
 
 ## Where we are
 
@@ -48,6 +48,16 @@ Updated 2026-10-16 (phases 0–4 closed; phase 5 hardening next). Read this firs
 5. **Phase 4 is done (2026-10-16).** Frontend: `src/lib/mesh/v4` (encoder with inlined template bodies, vector parity, `verify.ts` checks every server plan before signing, builders), `components/mesh/v4`, `pages/MeshPositionPage.tsx` (`/mesh/position/:category`). Headless Playwright run on chipnet against local :3001 (started with `V4_IDENTITY_ADDRESS` = the funder's address, env only) passed: deploy (seed step), position page, depth split, withdraw one bin, send NFT, V3 range → V4 in one signature, My positions. **Gotcha:** cashscript 0.12 `send()` debug-evaluates in a pre-2026 VM that refuses NFT commitments > 40 bytes; V4 sends use `signer.send(b, p, { raw: true })`. External wallets (Paytaca/Cashonize via WalletConnect) are untested with the 82-byte commitment. Not built: split position, admin positions page, V3 card "moved to V4" lineage.
 6. **Phase 5 next:** chipnet E2E/stress (R009/R010 with V4), security review, audit #1 booking, capped mainnet (needs the user).
 7. Phase 6 later: turn the S3 draft into `PositionManagerV4`. Consume the price list as it loops (its cost is quadratic now), use `gridPrice` for the K bound, and add tests M1–M10.
+
+## Phase 5–7 progress (2026-10-17)
+
+- **Admin V4 (phase 4.5):** meshserver `/api/v1/admin/v4/{positions,health,migration}` (src/api/routes/adminV4.ts) + frontend `/admin/v4` (src/admin/pages/V4PositionsPage.tsx). Registry, engine split, one-UTXO-per-bin invariant. jest 34/34; verified headless on chipnet (5 positions).
+- **Pinning:** Pinata key in meshserver/.env (METADATA_PIN_PROVIDER=pinata + PINATA_JWT, gitignored — secret not in git/memory). Verified: Pinata stores at our raw-leaves CIDv1, live /metadata pins, resolves on gateway.pinata.cloud. Deploy panel auto-pins.
+- **Phase 5.2 live attacks:** `meshserver/scripts/attack-v4-live.ts` broadcasts 3 hostile V4 spends to chipnet (under-pay, redirect, owner-path-no-NFT); all rejected code 16 (OP_VERIFY / OP_EQUALVERIFY / OP_SPLIT). Results in data/v4_attacks_live_<date>/. Phase 5.1 = e2e_v4_api_live.ts (done).
+- **Phase 6 keeper:** spike `contracts/spikes/PositionManagerV4.cash` already enforces M1–M5, M8 and passes 21/21 (test/spikes/s3_manager_cost.ts): 803 B redeem, 99 bins/call. **Not promoted to contracts/ and not wired live** (post-audit-#1). Remaining: the K-bound (max centre move — the hard design, flagged in this handoff), oracle band (M6), keeper service (6.2), hostile-keeper simulation (M7), M9/M10 tests, audit #2.
+- **Phase 7 products:** designed in `docs-site/docs/LPS/v4plan/05-v4c-products.md` (Meteora map + covenant sketches). Document only, per the user.
+- **Known gaps:** split a position into a new NFT; external-wallet test of the 82-byte commitment; server-side V3→V4 lineage link (frontend records per-browser).
+- **Remaining for the user:** V4_IDENTITY_ADDRESS on any real server; the Sanity import of the two docs pages; audit bookings (#1 V4a, #2 V4b); mainnet caps/go-ahead.
 
 ## Rules (from the user; these override defaults)
 
