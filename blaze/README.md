@@ -7,6 +7,7 @@ Read in order:
 1. [Token genesis and curve funding](01-token-genesis-and-funding.md)
 2. [Contract sequence and meaningful commits](02-implementation-and-commits.md)
 3. [Chipnet end-to-end test plan and current result](03-chipnet-e2e.md)
+4. [Proposed repository and contract tree](04-repository-tree.md)
 
 ## Contract boundary
 
