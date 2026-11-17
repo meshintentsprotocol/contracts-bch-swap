@@ -69,6 +69,8 @@ const grad: BchGraduationTermsV2 = {
   lockedBinScript: built.bin.lockingBytecode, creatorBinScript: binToHex(OWNER.lock),
   stateArchiveScript: binToHex(KEEPER.lock), lockedPositionCategory: TOKEN_B,
   creatorPositionCategory: '11'.repeat(32), lockedBps: 9_000,
+  collectorScripts: [built.creatorCollector.lockingBytecode, built.partnerCollector.lockingBytecode,
+    built.protocolCollector.lockingBytecode], collectorCarrierSats: 1_000n,
 };
 const curveV2 = new Contract(CURVE_V2, [`0x${catVm(TOKEN_A)}`,
   `0x${le(m.virtualBase, 8)}`, `0x${le(m.virtualQuote, 8)}`,
@@ -77,7 +79,8 @@ const curveV2 = new Contract(CURVE_V2, [`0x${catVm(TOKEN_A)}`,
   `0x${m.curveFees.creator.scriptHash}`, `0x${m.curveFees.partner.scriptHash}`,
   `0x${m.curveFees.protocol.scriptHash}`, `0x${hash(grad.lockedBinScript)}`,
   `0x${hash(grad.creatorBinScript)}`, `0x${hash(grad.stateArchiveScript)}`,
-  `0x${le(9_000n, 2)}`], { provider: net, contractType: 'p2sh32' });
+  `0x${le(9_000n, 2)}`, ...grad.collectorScripts.map((script) => `0x${hash(script)}`),
+  `0x${le(1_000n, 8)}`], { provider: net, contractType: 'p2sh32' });
 const mV2 = { ...m, curveScriptHash: hash(curveV2.lockingBytecode),
   allocations: [{ ...m.allocations[0]!, lockingBytecode: curveV2.lockingBytecode }] };
 const linked = bchGraduationCurveFromManifestV1(mV2, terms, grad, CURVE_V2, BIN, COLLECTOR, net);
@@ -89,4 +92,6 @@ assert.throws(() => bchGraduationCurveFromManifestV1(mV2, terms,
   { ...grad, lockedBinScript: binToHex(TAKER.lock) }, CURVE_V2, BIN, COLLECTOR, net), /locked destination/);
 assert.throws(() => bchGraduationCurveFromManifestV1(mV2, terms,
   { ...grad, stateArchiveScript: binToHex(OWNER.lock) }, CURVE_V2, BIN, COLLECTOR, net), /curve script differs/);
-console.log('Mesh Blaze BCH market and graduation constructors: 15 assertions passed');
+assert.throws(() => bchGraduationCurveFromManifestV1(mV2, terms,
+  { ...grad, collectorCarrierSats: 2_000n }, CURVE_V2, BIN, COLLECTOR, net), /collector destinations/);
+console.log('Mesh Blaze BCH market and graduation constructors: 16 assertions passed');

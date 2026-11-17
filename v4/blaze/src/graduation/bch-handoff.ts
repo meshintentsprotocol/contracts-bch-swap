@@ -13,6 +13,8 @@ export interface BchGraduationTermsV2 {
   lockedPositionCategory: string;
   creatorPositionCategory: string;
   lockedBps: number;
+  collectorScripts: readonly [string, string, string];
+  collectorCarrierSats: bigint;
 }
 export interface BchGraduationPlanV2 {
   curveInput: SpendableUtxo;
@@ -34,10 +36,14 @@ function categoryBytes(category: string): Uint8Array {
 }
 function encodedTerms(t: BchGraduationTermsV2): Uint8Array {
   if (!Number.isInteger(t.lockedBps) || t.lockedBps < 9_000 || t.lockedBps > 10_000) fail('lock share outside 9000..10000 bps');
+  if (t.collectorScripts.length !== 3) fail('exactly three collector scripts required');
+  if (t.collectorCarrierSats < 1_000n || t.collectorCarrierSats >= 1n << 63n)
+    fail('collector carrier outside VM range');
   const categories = [categoryBytes(t.lockedPositionCategory), categoryBytes(t.creatorPositionCategory)];
   if (t.lockedPositionCategory === t.creatorPositionCategory) fail('position categories must differ');
-  const scripts = [t.lockedBinScript, t.creatorBinScript, t.stateArchiveScript].map(scriptBytes);
+  const scripts = [t.lockedBinScript, t.creatorBinScript, t.stateArchiveScript, ...t.collectorScripts].map(scriptBytes);
   const parts: number[] = [2, t.lockedBps & 255, t.lockedBps >> 8, ...categories[0]!, ...categories[1]!];
+  for (let i = 0; i < 8; i++) parts.push(Number((t.collectorCarrierSats >> BigInt(i * 8)) & 255n));
   for (const script of scripts) parts.push(script.length & 255, script.length >> 8, ...script);
   return Uint8Array.from(parts);
 }
@@ -63,8 +69,8 @@ function expectedOutputs(m: LaunchManifestV1, curve: SpendableUtxo, sponsor: Spe
   const creatorExists = split.creatorBase > 0n && split.creatorQuote > 0n;
   if ((split.creatorBase > 0n) !== (split.creatorQuote > 0n)) fail('one-sided creator share needs explicit terms');
   const binCount = creatorExists ? 2n : 1n;
-  const sponsorChange = sponsor.satoshis - binCount * 1_000n - networkFee;
-  if (sponsorChange < 546n) fail('sponsor cannot fund bin carriers, fee and change');
+  const sponsorChange = sponsor.satoshis - binCount * 1_000n - 3n * terms.collectorCarrierSats - networkFee;
+  if (sponsorChange < 546n) fail('sponsor cannot fund bin and collector carriers, fee and change');
   const outputs: PlannedOutput[] = [
     { lockingBytecode: terms.lockedBinScript, satoshis: split.lockedQuote + 1_000n,
       token: { category: m.tokenCategory, amount: split.lockedBase } },
@@ -74,6 +80,8 @@ function expectedOutputs(m: LaunchManifestV1, curve: SpendableUtxo, sponsor: Spe
   outputs.push({ lockingBytecode: terms.stateArchiveScript, satoshis: curveCarrierFromManifestV1(m),
     token: { category: m.tokenCategory, amount: 0n,
       nft: { capability: 'mutable', commitment: encodeCurveStateV1(state) } } });
+  for (const script of terms.collectorScripts)
+    outputs.push({ lockingBytecode: script, satoshis: terms.collectorCarrierSats });
   outputs.push({ lockingBytecode: sponsor.lockingBytecode, satoshis: sponsorChange });
   return { split, outputs };
 }

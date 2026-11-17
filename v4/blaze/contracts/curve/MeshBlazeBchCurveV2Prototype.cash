@@ -22,7 +22,11 @@ contract MeshBlazeBchCurveV2Prototype(
     bytes32 lockedBinScriptHash,
     bytes32 creatorBinScriptHash,
     bytes32 stateArchiveScriptHash,
-    bytes2 lockedBps
+    bytes2 lockedBps,
+    bytes32 creatorCollectorScriptHash,
+    bytes32 partnerCollectorScriptHash,
+    bytes32 protocolCollectorScriptHash,
+    bytes8 collectorCarrier
 ) {
     function buy() {
         int i = this.activeInputIndex;
@@ -193,10 +197,11 @@ contract MeshBlazeBchCurveV2Prototype(
         require(sha256(tx.outputs[i + 1].lockingBytecode) == recipientHash);
     }
 
-    // Completed curve -> locked bin + creator bin + NFT archive + sponsor change.
+    // Completed curve -> locked bin + creator bin + NFT archive + three
+    // fee collectors + sponsor change. Every market dependency is funded here.
     // Both asset shares are checked separately. Fee rights must be claimed first.
     function graduate() {
-        require(this.activeInputIndex == 0 && tx.inputs.length == 2 && tx.outputs.length == 4);
+        require(this.activeInputIndex == 0 && tx.inputs.length == 2 && tx.outputs.length == 7);
         bytes state = tx.inputs[0].nftCommitment;
         require(state.length == 34 && state.split(2)[0] == 0x0101);
         require(tx.inputs[0].tokenCategory == tokenCat + 0x01);
@@ -214,12 +219,20 @@ contract MeshBlazeBchCurveV2Prototype(
         require(sha256(tx.outputs[0].lockingBytecode) == lockedBinScriptHash);
         require(sha256(tx.outputs[1].lockingBytecode) == creatorBinScriptHash);
         require(sha256(tx.outputs[2].lockingBytecode) == stateArchiveScriptHash);
-        require(tx.outputs[3].lockingBytecode == tx.inputs[1].lockingBytecode);
+        require(tx.outputs[6].lockingBytecode == tx.inputs[1].lockingBytecode);
         require(tx.outputs[0].tokenCategory == tokenCat && tx.outputs[1].tokenCategory == tokenCat);
         require(tx.outputs[0].nftCommitment == 0x && tx.outputs[1].nftCommitment == 0x);
         require(tx.outputs[2].tokenCategory == tokenCat + 0x01);
         require(tx.outputs[2].nftCommitment == state && tx.outputs[2].tokenAmount == 0);
-        require(tx.outputs[3].tokenCategory == 0x && tx.outputs[3].nftCommitment == 0x);
+        require(int(collectorCarrier) >= 1000);
+        require(sha256(tx.outputs[3].lockingBytecode) == creatorCollectorScriptHash);
+        require(sha256(tx.outputs[4].lockingBytecode) == partnerCollectorScriptHash);
+        require(sha256(tx.outputs[5].lockingBytecode) == protocolCollectorScriptHash);
+        require(tx.outputs[3].value == int(collectorCarrier));
+        require(tx.outputs[4].value == int(collectorCarrier));
+        require(tx.outputs[5].value == int(collectorCarrier));
+        require(tx.outputs[3].tokenCategory == 0x && tx.outputs[4].tokenCategory == 0x);
+        require(tx.outputs[5].tokenCategory == 0x && tx.outputs[6].tokenCategory == 0x);
         require(tx.outputs[2].value == int(carrier));
 
         int lockedBase = tx.outputs[0].tokenAmount;
@@ -236,13 +249,13 @@ contract MeshBlazeBchCurveV2Prototype(
         int quoteRem = quote - quoteWhole * 10000;
         require(lockedBase >= baseWhole * lock + (baseRem * lock + 9999) / 10000);
         require(lockedQuote >= quoteWhole * lock + (quoteRem * lock + 9999) / 10000);
-        require(tx.outputs[3].value >= 546);
-        require(tx.outputs[3].value >= tx.inputs[1].value - 7000);
+        require(tx.outputs[6].value >= 546);
+        require(tx.outputs[6].value >= tx.inputs[1].value - 2000 - 3 * int(collectorCarrier) - 5000);
     }
 
-    // Full permanent lock has no creator bin output; the sponsor pays one bin carrier.
+    // Full permanent lock has no creator bin output; all collectors are still funded.
     function graduateAll() {
-        require(this.activeInputIndex == 0 && tx.inputs.length == 2 && tx.outputs.length == 3);
+        require(this.activeInputIndex == 0 && tx.inputs.length == 2 && tx.outputs.length == 6);
         require(int(lockedBps) == 10000);
         bytes state = tx.inputs[0].nftCommitment;
         require(state.length == 34 && state.split(2)[0] == 0x0101);
@@ -263,9 +276,17 @@ contract MeshBlazeBchCurveV2Prototype(
         require(tx.outputs[1].tokenCategory == tokenCat + 0x01);
         require(tx.outputs[1].nftCommitment == state && tx.outputs[1].tokenAmount == 0);
         require(tx.outputs[1].value == int(carrier));
-        require(tx.outputs[2].lockingBytecode == tx.inputs[1].lockingBytecode);
-        require(tx.outputs[2].tokenCategory == 0x && tx.outputs[2].nftCommitment == 0x);
-        require(tx.outputs[2].value >= 546);
-        require(tx.outputs[2].value >= tx.inputs[1].value - 6000);
+        require(int(collectorCarrier) >= 1000);
+        require(sha256(tx.outputs[2].lockingBytecode) == creatorCollectorScriptHash);
+        require(sha256(tx.outputs[3].lockingBytecode) == partnerCollectorScriptHash);
+        require(sha256(tx.outputs[4].lockingBytecode) == protocolCollectorScriptHash);
+        require(tx.outputs[2].value == int(collectorCarrier));
+        require(tx.outputs[3].value == int(collectorCarrier));
+        require(tx.outputs[4].value == int(collectorCarrier));
+        require(tx.outputs[2].tokenCategory == 0x && tx.outputs[3].tokenCategory == 0x);
+        require(tx.outputs[4].tokenCategory == 0x && tx.outputs[5].tokenCategory == 0x);
+        require(tx.outputs[5].lockingBytecode == tx.inputs[1].lockingBytecode);
+        require(tx.outputs[5].value >= 546);
+        require(tx.outputs[5].value >= tx.inputs[1].value - 1000 - 3 * int(collectorCarrier) - 5000);
     }
 }

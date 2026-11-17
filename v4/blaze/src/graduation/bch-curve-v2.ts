@@ -25,6 +25,11 @@ export function bchGraduationCurveFromManifestV1(m: LaunchManifestV1, marketTerm
   const market = bchFeeMarketFromManifestV1(m, marketTerms, binArtifact, collectorArtifact, provider);
   if (graduationTerms.lockedBinScript !== market.bin.lockingBytecode)
     fail('locked destination is not the committed fee market');
+  if (graduationTerms.collectorCarrierSats !== marketTerms.collectorCarrierSats ||
+      graduationTerms.collectorScripts[0] !== market.creatorCollector.lockingBytecode ||
+      graduationTerms.collectorScripts[1] !== market.partnerCollector.lockingBytecode ||
+      graduationTerms.collectorScripts[2] !== market.protocolCollector.lockingBytecode)
+    fail('collector destinations differ from committed fee market');
   if ([graduationTerms.lockedPositionCategory, graduationTerms.creatorPositionCategory].includes(m.tokenCategory))
     fail('position category equals launch token');
   const allocation = m.allocations.find((a) => a.name === 'curve');
@@ -42,7 +47,9 @@ export function bchGraduationCurveFromManifestV1(m: LaunchManifestV1, marketTerm
     `0x${hashScript(graduationTerms.lockedBinScript)}`,
     `0x${hashScript(graduationTerms.creatorBinScript)}`,
     `0x${hashScript(graduationTerms.stateArchiveScript)}`,
-    fixed(BigInt(graduationTerms.lockedBps), 2)],
+    fixed(BigInt(graduationTerms.lockedBps), 2),
+    ...graduationTerms.collectorScripts.map((script) => `0x${hashScript(script)}`),
+    fixed(graduationTerms.collectorCarrierSats, 8)],
     { provider, contractType: 'p2sh32' });
   if (hashScript(curve.lockingBytecode) !== m.curveScriptHash ||
       curve.lockingBytecode !== allocation.lockingBytecode)

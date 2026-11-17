@@ -23,6 +23,8 @@ const terms: BchGraduationTermsV2 = {
   lockedBinScript: lockedBin.lockingBytecode, creatorBinScript: creatorBin.lockingBytecode,
   stateArchiveScript: binToHex(KEEPER.lock), lockedPositionCategory: TOKEN_B,
   creatorPositionCategory: '11'.repeat(32), lockedBps: 9_000,
+  collectorScripts: [binToHex(OWNER.lock), binToHex(TAKER.lock), binToHex(KEEPER.lock)],
+  collectorCarrierSats: 1_000n,
 };
 const state: CurveStateV1 = { stage: 1, realQuote: 500_003n,
   creatorFees: 0n, partnerFees: 0n, protocolFees: 0n };
@@ -44,7 +46,7 @@ function fixture(s: CurveStateV1 = state, base = 100_001n) {
   };
   const curve = utxo(OWNER.lock, 1_000n + s.realQuote + s.creatorFees + s.partnerFees + s.protocolFees,
     nft(TOKEN_A, 'mutable', encodeCurveStateV1(s), base));
-  const sponsor = utxo(TAKER.lock, 5_000n);
+  const sponsor = utxo(TAKER.lock, 10_000n);
   return { m, curve, sponsor };
 }
 const { m, curve, sponsor } = fixture();
@@ -52,11 +54,12 @@ const commitment = bchGraduationTermsHashV2(terms);
 const plan = planBchGraduationV2(m, curve, sponsor, terms, commitment, 1_000n);
 assert.deepEqual(plan.split, { lockedBase: 90_001n, creatorBase: 10_000n,
   lockedQuote: 450_003n, creatorQuote: 50_000n });
-assert.equal(plan.outputs.length, 4);
+assert.equal(plan.outputs.length, 7);
 assert.equal(plan.outputs[0]!.satoshis, 451_003n);
 assert.equal(plan.outputs[1]!.satoshis, 51_000n);
 assert.equal(plan.outputs[2]!.token!.nft!.commitment, encodeCurveStateV1(state));
-assert.equal(plan.outputs[3]!.satoshis, 2_000n);
+assert.equal(plan.outputs[3]!.satoshis, 1_000n);
+assert.equal(plan.outputs[6]!.satoshis, 4_000n);
 assert.equal(plan.outputs.reduce((sum, out) => sum + out.satoshis, 0n), curve.satoshis + sponsor.satoshis - 1_000n);
 verifyBchGraduationPlanV2(m, plan);
 plan.outputs[0]!.token!.amount -= 1n;
@@ -71,6 +74,6 @@ assert.throws(() => planBchGraduationV2({ ...m, quoteCategory: TOKEN_B }, curve,
 const full = { ...terms, lockedBps: 10_000 };
 const fullPlan = planBchGraduationV2({ ...m, lockedLiquidityBps: 10_000 }, curve, sponsor, full,
   bchGraduationTermsHashV2(full), 1_000n);
-assert.equal(fullPlan.outputs.length, 3);
+assert.equal(fullPlan.outputs.length, 6);
 assert.equal(fullPlan.split.creatorBase, 0n);
-console.log('Mesh Blaze BCH graduation handoff: 16 assertions passed');
+console.log('Mesh Blaze BCH graduation handoff: 17 assertions passed');
