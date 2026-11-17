@@ -16,6 +16,14 @@ Status: baseline check, 2026-11-17. Do not mark Blaze E2E green until the new sc
 
 For every run, record network height, artifact and manifest hashes, source revision, exact txids, explorer links, decoded transaction diffs and balances. Use isolated funded chipnet wallets; never log WIFs. Do not reuse `wallet.json` in committed fixtures.
 
+## E1 funding gate
+
+The offline calculator `v4/blaze/src/graduation/chipnet-budget.ts` totals the curve's gross BCH buy budget (including its configured curve trading fee), curve carrier, one or two market-bin carriers, three collector carriers, a separate creator position NFT carrier, and operator-chosen fee and trade-float reserves. It reports the threshold quote and minimum permanently locked quote separately; locked quote is already inside the gross buy budget and must not be added again. The state archive reuses the curve carrier. Market collectors retain their carriers during claims; the archive carrier has no spend path. The locked bin has no owner principal withdrawal, although swaps can change its BCH balance.
+
+For the local 500,003-sat threshold and 90% lock fixture, the calculator gives 505,054 sats for gross buys, 1,000 curve carrier, 2,000 bin carriers, 3,000 collector carriers, 1,000 creator NFT carrier, 100,000 fee reserve, and 100,000 trade float: **712,054 sats (0.00712054 tBCH)**. At least 450,003 sats of the 500,003-sat graduated quote enters the permanently locked bin. A **0.01 tBCH** isolated wallet target leaves 287,946 sats beyond this estimate. This assumes one launch and does not fund additional launches, presale, Alpha, token-quote issuance, faucet retries, or arbitrary trading volume. A sell may require more BCH in the bin than a chosen test trade provides; set the trade float from the actual signed sequence.
+
+Before broadcasting, construct and sign every E1 transaction offline, measure its serialized size and actual fee, verify each output against the committed scripts, and recompute the wallet's maximum simultaneous funding need. Fund the isolated chipnet wallet only after that check. Record source UTXOs and balances without exposing the key. The calculator is a planning bound, not a relay-policy or live-balance proof.
+
 ## Existing baseline, not Blaze E2E
 
 The repo has `v4/tools/chipnet-position-genesis.ts` for a live position-NFT seed/genesis and `v4/tools/resolve-position-metadata.ts` for a read-only chain/BCMR verification. The V4 local suite is `npm.cmd test` in `v4`. The current run result and any chipnet query result are recorded below after execution. Neither script exercises a Blaze token launch, because Blaze contracts and builders are not implemented yet.
