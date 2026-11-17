@@ -106,7 +106,7 @@ function reachableLifecycle() {
   };
   let curveInput = utxo(c.lockingBytecode, 1_000n,
     nft(TOKEN_A, 'mutable', m.allocations[0]!.nftCommitment!, 1_000_000n));
-  const openingPlan = planBchCurveBuyV1(m, curveInput, utxo(TAKER.lock, 900_000n),
+  const openingPlan = planBchCurveBuyV1(m, curveInput, utxo(TAKER.lock, 700_000n),
     100_000n, 4_000n, 1n);
   const opening = buildSignedBchCurveAction(net, m, openingPlan, c, TAKER.template, 'buy');
   assert.equal(verify(opening), true);
