@@ -55,6 +55,7 @@ async function main() {
   const tx = new Map<string, Transaction>();
   for (const [name, txid] of stages) tx.set(name, await fetch(txid));
   const vm = createVirtualMachineBch2026(true);
+  let totalNetworkFees = 0n;
   for (const [name] of stages) {
     const current = tx.get(name)!;
     const sourceOutputs: Output[] = [];
@@ -66,6 +67,10 @@ async function main() {
     }
     const result = vm.verify({ transaction: current, sourceOutputs });
     if (result !== true) fail(`${name} failed BCH VM: ${String(result)}`);
+    const fee = sourceOutputs.reduce((sum, output) => sum + output.valueSatoshis, 0n) -
+      current.outputs.reduce((sum, output) => sum + output.valueSatoshis, 0n);
+    if (fee <= 0n) fail(`${name} has no network fee`);
+    totalNetworkFees += fee;
   }
   const category = genesis.tokenCategory;
   const token = (name: string, index: number) => tx.get(name)!.outputs[index]?.token;
@@ -125,7 +130,8 @@ async function main() {
   const minConfirmations = Math.min(...stages.map(([_name, txid]) => confirmation.get(txid) ?? 0));
   console.log(JSON.stringify({ status: minConfirmations > 0 ? 'CONFIRMED_E1' : 'VISIBLE_UNCONFIRMED_E1',
     network: 'chipnet', height: await provider.getBlockHeight(), transactions: stages.length,
-    minimumConfirmations: minConfirmations, tokenCategory: category,
+    minimumConfirmations: minConfirmations, totalNetworkFeesSats: totalNetworkFees.toString(),
+    tokenCategory: category,
     lockedBase: '560000', lockedBchSats: '472053', creatorBase: '63333',
     archiveTxid: graduation.txid, finalTokenSupply: finalTokenSum.toString() }));
 }
