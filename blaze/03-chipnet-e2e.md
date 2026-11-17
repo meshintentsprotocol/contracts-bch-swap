@@ -24,6 +24,8 @@ For the local 500,003-sat threshold and 90% lock fixture, the calculator gives 5
 
 Before broadcasting, construct and sign every E1 transaction offline, measure its serialized size and actual fee, verify each output against the committed scripts, and recompute the wallet's maximum simultaneous funding need. Fund the isolated chipnet wallet only after that check. Record source UTXOs and balances without exposing the key. The calculator is a planning bound, not a relay-policy or live-balance proof.
 
+The BCH V2 graduation path now has a signing-independent output plan and a separate signed transaction builder (`v4/blaze/src/graduation/bch-signed-handoff.ts`). Its local 90% fixture serializes to **3,302 bytes** with a **4,000-sat** fee (about 1.21 sat/byte), below the covenant's 5,000-sat fee cap. Both 90% and 100% signed paths pass the BCH VM, and a fee below the signed size is rejected. The sample uses synthetic UTXOs and test keys; the final chipnet transaction must be built from confirmed UTXOs and rechecked before broadcast.
+
 Read-only connectivity check on 2026-11-17: CashScript's chipnet Electrum provider returned height **335,151**. The public recipient address in the prior V4 position-test state (`bchtest:zpmnrn7s7c426vr849r3rs4euxsk3n2ghgkrfhvfx7`) had **99,044 BCH-only sats** in one UTXO and no token UTXOs. This address has not been designated as the isolated Blaze E1 funder; its observed balance is 900,956 sats below the 0.01 tBCH target. No key was loaded and no transaction was broadcast in this check.
 
 ## Existing baseline, not Blaze E2E

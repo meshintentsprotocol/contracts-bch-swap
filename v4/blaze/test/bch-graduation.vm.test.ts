@@ -4,6 +4,9 @@ import { binToHex, sha256 } from '@bitauth/libauth';
 import { Contract } from 'cashscript';
 import { KEEPER, OWNER, TAKER, TOKEN_A, TOKEN_B, catVm, le, net, nft, tb, utxo, buildTx, verify, lockOf } from '../../test/harness.js';
 import { encodeCurveStateV1 } from '../src/curve/state.js';
+import { bchGraduationTermsHashV2, planBchGraduationV2, type BchGraduationTermsV2 } from '../src/graduation/bch-handoff.js';
+import { buildSignedBchGraduationV2 } from '../src/graduation/bch-signed-handoff.js';
+import type { LaunchManifestV1 } from '../src/manifest/v1.js';
 
 const artifact = (path: string) => JSON.parse(readFileSync(path, 'utf8'));
 const CURVE = artifact('blaze/artifacts/MeshBlazeBchCurveV2Prototype.json');
@@ -43,6 +46,35 @@ function curveFor(lockBps: bigint, lockedScript = lockOf(locked), creatorScript 
   `0x${le(bid, 8)}`, `0x${le(1n, 8)}`, `0x${le(ask, 8)}`, `0x${le(1n, 8)}`,
 ], { provider: net, contractType: 'p2sh32' }); }
 const curve = curveFor(9_000n);
+function signedFixture(lockBps = 9_000, networkFee = 4_000n) {
+  const c = curveFor(BigInt(lockBps), lockOf(feeLocked), lockOf(feeCreator));
+  const zero = '00'.repeat(32);
+  const rights = { creator: { scriptHash: h(OWNER.lock), bps: 50 },
+    partner: { scriptHash: h(TAKER.lock), bps: 25 }, protocol: { scriptHash: h(KEEPER.lock), bps: 25 } };
+  const m: LaunchManifestV1 = {
+    version: 1, tokenCategory: TOKEN_A, quoteCategory: null, totalSupply: 1_000_000n,
+    allocations: [{ name: 'curve', amount: 1_000_000n, satoshis: 1_000n,
+      lockingBytecode: c.lockingBytecode,
+      nftCommitment: encodeCurveStateV1({ stage: 0, realQuote: 0n, creatorFees: 0n,
+        partnerFees: 0n, protocolFees: 0n }) }],
+    activationHeight: 400_000, alphaStartHeight: 0, alphaEndHeight: 0, presaleRoute: null,
+    presaleScriptHash: zero, alphaModes: 0, alphaFixedScriptHash: zero, alphaBuyScriptHash: zero,
+    virtualBase: 100_000n, virtualQuote: 1_000_000n, graduationQuoteThreshold: 500_003n,
+    lockedLiquidityBps: lockBps, curveScriptHash: h(lockOf(c)), quoteVaultScriptHash: zero,
+    quoteVaultCarrierSats: 0n, graduationScriptHash: h(OWNER.lock),
+    marketScriptHash: h(lockOf(feeLocked)), curveFees: rights, marketFees: rights,
+  };
+  const terms: BchGraduationTermsV2 = { lockedBinScript: feeLocked.lockingBytecode,
+    creatorBinScript: feeCreator.lockingBytecode, stateArchiveScript: archive.lockingBytecode,
+    lockedPositionCategory: TOKEN_B, creatorPositionCategory: '11'.repeat(32), lockedBps: lockBps,
+    collectorScripts: collectors.map((collector) => collector.lockingBytecode) as [string, string, string],
+    collectorCarrierSats: 1_000n };
+  const source = utxo(c.lockingBytecode, 501_003n, nft(TOKEN_A, 'mutable', state, 100_001n));
+  const sponsor = utxo(OWNER.lock, 10_000n);
+  const plan = planBchGraduationV2(m, source, sponsor, terms,
+    bchGraduationTermsHashV2(terms), networkFee);
+  return { m, c, plan };
+}
 
 function spend(tamper: 'none' | 'lockedScript' | 'creatorScript' | 'base' | 'quote' | 'archive' | 'collector' | 'sponsor' | 'fees' | 'stage' = 'none', feeMarket = false, bid = 7n, ask = 8n) {
   const sourceCurve = feeMarket ? curveFor(9_000n, lockOf(feeLocked), lockOf(feeCreator), bid, ask) : curveFor(9_000n, lockOf(locked), lockOf(creator), bid, ask);
@@ -75,6 +107,22 @@ function spendAll(tamper: 'none' | 'base' | 'quote' = 'none') {
   return b;
 }
 const cases: Array<[string, () => void]> = [
+  ['signed graduation handoff passes BCH VM', () => {
+    const { m, c, plan } = signedFixture();
+    const built = buildSignedBchGraduationV2(net, m, plan, c, OWNER.template);
+    assert.equal(verify(built), true);
+    assert.equal(built.paidFee, 4_000n);
+    assert.ok(built.size < 4_000);
+    console.log(`signed graduation sample: ${built.size} bytes, ${built.paidFee} sats fee`);
+  }],
+  ['signed full-lock graduation passes BCH VM', () => {
+    const { m, c, plan } = signedFixture(10_000);
+    assert.equal(verify(buildSignedBchGraduationV2(net, m, plan, c, OWNER.template)), true);
+  }],
+  ['signed graduation rejects fee below serialized size', () => {
+    const { m, c, plan } = signedFixture(9_000, 1_000n);
+    assert.throws(() => buildSignedBchGraduationV2(net, m, plan, c, OWNER.template), /fee differs or falls below rate/);
+  }],
   ['completed curve funds V4 locked and creator bins', () => assert.equal(verify(buildTx(spend())), true)],
   ['completed curve atomically funds locked and owned fee bins plus three collectors', () => assert.equal(verify(buildTx(spend('none', true))), true)],
   ['terminal bid below ten percent band fails', () => assert.match(verify(buildTx(spend('none', false, 6n, 8n))) as string, /input index 0/i)],
