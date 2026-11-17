@@ -28,6 +28,10 @@ An **illustration for economic testing only**: a 30-bps market fee could split 8
 
 The first BCH fee-bearing market should be a new, **locked** V4-style artifact with no owner withdrawal path. A separate creator-owned artifact may permit withdrawal of its disclosed principal, but it must settle or preserve all accrued fee liabilities first. The unique launch state NFT currently travels to an archive output on graduation; it cannot also be a mutable fee-state NFT in multiple market bins. Solve fee-state representation and the one-category-per-UTXO limit before coding multiple fee-bearing bins. A shared fee accumulator creates contention; per-bin accrual needs independently authenticated state and robust claim/exit rules. An accounting database entry alone does not make external solver payment enforceable.
 
+### BCH collector spike
+
+`MeshBlazeBchFeeCollectorV1.cash` now compiles and has eight BCH VM checks plus one builder dust rejection. A BCH-only UTXO at a recipient-bound script can grow at the same input/output index; anyone may claim its entire accrued balance to the immutable recipient while a sponsor pays the network fee. The sample accrue transaction is 492 bytes; the sample claim is 526 bytes. **This does not collect a trading fee yet.** A future locked market bin must require and verify exact collector deltas on every fill. A single collector per role can serialize fills, so the market should allow per-bin or sharded collector UTXOs and prove that old balances remain independently claimable. Three collector inputs per fill may be too costly; measure a complete paired trade before accepting this design. Token-quote markets need a separate token collector and carrier policy.
+
 ## Changes we can include during Blaze development
 
 - Define the market's total fee, four-way split, fee asset, integer rounding order, claim threshold, recipient scripts and claim carriers in a **versioned manifest extension** before public funding. Validate the combined maximum trading and execution quote in SDK/UI.
