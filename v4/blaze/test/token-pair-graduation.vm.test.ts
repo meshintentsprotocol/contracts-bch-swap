@@ -4,7 +4,8 @@ import { binToHex, encodeTransaction, hash256, hashTransaction, hexToBin, sha256
 import { Contract } from 'cashscript';
 import { OWNER, TAKER, KEEPER, TOKEN_A, TOKEN_B, catVm, le, net, nft,
   tb, utxo, buildTx, verify, lockOf, inputMetrics } from '../../test/harness.js';
-import { encodeCurveStateV1 } from '../src/curve/state.js';
+import { encodeCurveStateV1, type CurveStateV1 } from '../src/curve/state.js';
+import { quoteBuy, quoteSell } from '../src/math/curve.js';
 import { tokenPairGraduationTermsHashV1, planTokenPairGraduationV1,
   type TokenPairGraduationTermsV1 } from '../src/graduation/token-pair-handoff.js';
 import type { LaunchManifestV1 } from '../src/manifest/v1.js';
@@ -102,6 +103,55 @@ function build(f: ReturnType<typeof fixture>, mutate?: (outputs: typeof f.plan.o
   return buildTx(builder);
 }
 const ninety = fixture(9_000);
+const initial = { base: 1_000_000n, state: { ...terminal, stage: 0 as const, realQuote: 0n } };
+const curveConfig = { virtualBase: 100_000n, virtualQuote: 1_000_000n,
+  quoteThreshold: 500_003n, fees: { creatorBps: 50, partnerBps: 25, protocolBps: 25 } };
+const curveBuy = quoteBuy(curveConfig, initial, 100_000n);
+const v2Buy = tb();
+v2Buy.addInput(utxo(ninety.b.lockingBytecode, 1_000n,
+  nft(TOKEN_A, 'mutable', encodeCurveStateV1(initial.state), initial.base)), ninety.b.unlock.buy());
+v2Buy.addInput(utxo(ninety.q.lockingBytecode, 1_000n), ninety.q.unlock.buy());
+v2Buy.addInput(utxo(TAKER.lock, 5_000n, { category: TOKEN_B, amount: 100_000n }),
+  TAKER.template.unlockP2PKH());
+v2Buy.addOutput({ to: lockOf(ninety.b), amount: 1_000n,
+  token: nft(TOKEN_A, 'mutable', encodeCurveStateV1(curveBuy.next.state), curveBuy.next.base) });
+v2Buy.addOutput({ to: lockOf(ninety.q), amount: 1_000n,
+  token: { category: TOKEN_B, amount: curveBuy.usedGross } });
+v2Buy.addOutput({ to: TAKER.lock, amount: 1_000n,
+  token: { category: TOKEN_A, amount: curveBuy.baseOut } });
+assert.equal(verify(buildTx(v2Buy)), true);
+const curveSell = quoteSell(curveConfig, curveBuy.next, 1_000n);
+const held = (s: CurveStateV1) => s.realQuote + s.creatorFees + s.partnerFees + s.protocolFees;
+const v2Sell = tb();
+v2Sell.addInput(utxo(ninety.b.lockingBytecode, 1_000n,
+  nft(TOKEN_A, 'mutable', encodeCurveStateV1(curveBuy.next.state), curveBuy.next.base)), ninety.b.unlock.sell());
+v2Sell.addInput(utxo(ninety.q.lockingBytecode, 1_000n,
+  { category: TOKEN_B, amount: held(curveBuy.next.state) }), ninety.q.unlock.sell());
+v2Sell.addInput(utxo(TAKER.lock, 5_000n, { category: TOKEN_A, amount: 1_000n }),
+  TAKER.template.unlockP2PKH());
+v2Sell.addOutput({ to: lockOf(ninety.b), amount: 1_000n,
+  token: nft(TOKEN_A, 'mutable', encodeCurveStateV1(curveSell.next.state), curveSell.next.base) });
+v2Sell.addOutput({ to: lockOf(ninety.q), amount: 1_000n,
+  token: { category: TOKEN_B, amount: held(curveSell.next.state) } });
+v2Sell.addOutput({ to: TAKER.lock, amount: 1_000n,
+  token: { category: TOKEN_B, amount: curveSell.traderQuote } });
+assert.equal(verify(buildTx(v2Sell)), true);
+const claimState = { ...curveSell.next.state, creatorFees: 0n };
+const v2Claim = tb();
+v2Claim.addInput(utxo(ninety.b.lockingBytecode, 1_000n,
+  nft(TOKEN_A, 'mutable', encodeCurveStateV1(curveSell.next.state), curveSell.next.base)),
+ninety.b.unlock.claim(0n));
+v2Claim.addInput(utxo(ninety.q.lockingBytecode, 1_000n,
+  { category: TOKEN_B, amount: held(curveSell.next.state) }), ninety.q.unlock.claim(0n));
+v2Claim.addInput(utxo(OWNER.lock, 5_000n), OWNER.template.unlockP2PKH());
+v2Claim.addOutput({ to: lockOf(ninety.b), amount: 1_000n,
+  token: nft(TOKEN_A, 'mutable', encodeCurveStateV1(claimState), curveSell.next.base) });
+v2Claim.addOutput({ to: lockOf(ninety.q), amount: 1_000n,
+  token: { category: TOKEN_B, amount: held(claimState) } });
+v2Claim.addOutput({ to: OWNER.lock, amount: 1_000n,
+  token: { category: TOKEN_B, amount: curveSell.next.state.creatorFees } });
+v2Claim.addOutput({ to: OWNER.lock, amount: 2_000n });
+assert.equal(verify(buildTx(v2Claim)), true);
 assert.equal(verify(build(ninety)), true);
 assert.equal(verify(build(fixture(10_000))), true);
 const badPrice = build(fixture(9_000, 5n, 8n));
@@ -155,4 +205,4 @@ rejectsBoth((outputs) => { outputs[1]!.token!.amount -= 1n; });
 rejectsBoth((outputs) => { outputs[1]!.lockingBytecode = binToHex(OWNER.lock); });
 rejectsBoth((outputs) => { outputs[8]!.satoshis -= 5_001n; });
 rejectsBoth((outputs) => { outputs[4]!.token!.nft!.commitment = '00'; });
-console.log('Mesh Blaze paired graduation VM: 11 checks passed, including price-band rejection and linked market claims');
+console.log('Mesh Blaze paired graduation VM: 14 checks passed, including V2 trades and linked market claims');
