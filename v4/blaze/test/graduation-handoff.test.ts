@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { binToHex, sha256 } from '@bitauth/libauth';
+import { binToHex, hexToBin, sha256 } from '@bitauth/libauth';
 import { Contract } from 'cashscript';
 import { KEEPER, OWNER, TAKER, TOKEN_A, TOKEN_B, catVm, le, net, nft, utxo } from '../../test/harness.js';
 import { encodeCurveStateV1, type CurveStateV1 } from '../src/curve/state.js';
@@ -38,7 +38,8 @@ function fixture(s: CurveStateV1 = state, base = 100_001n) {
     presaleScriptHash: zero, alphaModes: 0, alphaFixedScriptHash: zero, alphaBuyScriptHash: zero,
     virtualBase: 100_000n, virtualQuote: 1_000_000n, graduationQuoteThreshold: 500_003n,
     lockedLiquidityBps: 9_000, curveScriptHash: h(OWNER.lock), quoteVaultScriptHash: zero,
-    quoteVaultCarrierSats: 0n, graduationScriptHash: h(KEEPER.lock), marketScriptHash: h(TAKER.lock),
+    quoteVaultCarrierSats: 0n, graduationScriptHash: h(KEEPER.lock),
+    marketScriptHash: h(hexToBin(lockedBin.lockingBytecode)),
     curveFees: rights, marketFees: rights,
   };
   const curve = utxo(OWNER.lock, 1_000n + s.realQuote + s.creatorFees + s.partnerFees + s.protocolFees,
@@ -61,6 +62,8 @@ verifyBchGraduationPlanV2(m, plan);
 plan.outputs[0]!.token!.amount -= 1n;
 assert.throws(() => verifyBchGraduationPlanV2(m, plan), /output 0 differs/);
 assert.throws(() => planBchGraduationV2(m, curve, sponsor, terms, h(OWNER.lock), 1_000n), /committed hash/);
+assert.throws(() => planBchGraduationV2({ ...m, marketScriptHash: h(OWNER.lock) }, curve, sponsor,
+  terms, commitment, 1_000n), /locked market script/);
 assert.throws(() => planBchGraduationV2(m, fixture({ ...state, stage: 0 }).curve, sponsor, terms, commitment, 1_000n), /not complete/);
 assert.throws(() => planBchGraduationV2(m, fixture({ ...state, creatorFees: 10n }).curve, sponsor, terms, commitment, 1_000n), /claim all/);
 assert.throws(() => planBchGraduationV2(m, curve, utxo(TAKER.lock, 2_000n), terms, commitment, 1_000n), /sponsor cannot/);
@@ -70,4 +73,4 @@ const fullPlan = planBchGraduationV2({ ...m, lockedLiquidityBps: 10_000 }, curve
   bchGraduationTermsHashV2(full), 1_000n);
 assert.equal(fullPlan.outputs.length, 3);
 assert.equal(fullPlan.split.creatorBase, 0n);
-console.log('Mesh Blaze BCH graduation handoff: 15 assertions passed');
+console.log('Mesh Blaze BCH graduation handoff: 16 assertions passed');

@@ -6,10 +6,13 @@ import { KEEPER, OWNER, TAKER, TOKEN_A, TOKEN_B, catVm, le, net } from '../../te
 import { encodeCurveStateV1 } from '../src/curve/state.js';
 import { bchFeeMarketFromManifestV1, validateBchMarketArithmeticV1,
   type BchMarketTermsV1 } from '../src/market/bch-market.js';
+import { bchGraduationCurveFromManifestV1 } from '../src/graduation/bch-curve-v2.js';
+import type { BchGraduationTermsV2 } from '../src/graduation/bch-handoff.js';
 import type { LaunchManifestV1 } from '../src/manifest/v1.js';
 
 const BIN = JSON.parse(readFileSync('blaze/artifacts/MeshBlazeBchFeeBinLockedV1.json', 'utf8'));
 const COLLECTOR = JSON.parse(readFileSync('blaze/artifacts/MeshBlazeBchFeeCollectorV1.json', 'utf8'));
+const CURVE_V2 = JSON.parse(readFileSync('blaze/artifacts/MeshBlazeBchCurveV2Prototype.json', 'utf8'));
 const hash = (script: string) => binToHex(sha256.hash(hexToBin(script)));
 const terms: BchMarketTermsV1 = { bidNum: 7n, bidDen: 1n, askNum: 8n, askDen: 1n,
   tradingFeeBps: 30, collectorCarrierSats: 1_000n };
@@ -62,4 +65,28 @@ assert.throws(() => bchFeeMarketFromManifestV1({ ...m, marketFees: {
 assert.throws(() => validateBchMarketArithmeticV1(m, { ...terms, bidNum: 9n }), /crossed price/);
 assert.throws(() => validateBchMarketArithmeticV1(m, { ...terms, askNum: (1n << 63n) / m.totalSupply + 1n }), /supply times price/);
 assert.throws(() => validateBchMarketArithmeticV1({ ...m, quoteCategory: TOKEN_B }, terms), /quote must be BCH/);
-console.log('Mesh Blaze BCH market constructor: 10 assertions passed');
+const grad: BchGraduationTermsV2 = {
+  lockedBinScript: built.bin.lockingBytecode, creatorBinScript: binToHex(OWNER.lock),
+  stateArchiveScript: binToHex(KEEPER.lock), lockedPositionCategory: TOKEN_B,
+  creatorPositionCategory: '11'.repeat(32), lockedBps: 9_000,
+};
+const curveV2 = new Contract(CURVE_V2, [`0x${catVm(TOKEN_A)}`,
+  `0x${le(m.virtualBase, 8)}`, `0x${le(m.virtualQuote, 8)}`,
+  `0x${le(m.graduationQuoteThreshold, 8)}`, `0x${le(1_000n, 8)}`,
+  `0x${le(50n, 2)}`, `0x${le(25n, 2)}`, `0x${le(25n, 2)}`,
+  `0x${m.curveFees.creator.scriptHash}`, `0x${m.curveFees.partner.scriptHash}`,
+  `0x${m.curveFees.protocol.scriptHash}`, `0x${hash(grad.lockedBinScript)}`,
+  `0x${hash(grad.creatorBinScript)}`, `0x${hash(grad.stateArchiveScript)}`,
+  `0x${le(9_000n, 2)}`], { provider: net, contractType: 'p2sh32' });
+const mV2 = { ...m, curveScriptHash: hash(curveV2.lockingBytecode),
+  allocations: [{ ...m.allocations[0]!, lockingBytecode: curveV2.lockingBytecode }] };
+const linked = bchGraduationCurveFromManifestV1(mV2, terms, grad, CURVE_V2, BIN, COLLECTOR, net);
+assert.equal(linked.curve.lockingBytecode, curveV2.lockingBytecode);
+assert.equal(linked.market.bin.lockingBytecode, grad.lockedBinScript);
+assert.throws(() => bchGraduationCurveFromManifestV1(mV2, terms,
+  { ...grad, creatorBinScript: binToHex(TAKER.lock) }, CURVE_V2, BIN, COLLECTOR, net), /curve script differs/);
+assert.throws(() => bchGraduationCurveFromManifestV1(mV2, terms,
+  { ...grad, lockedBinScript: binToHex(TAKER.lock) }, CURVE_V2, BIN, COLLECTOR, net), /locked destination/);
+assert.throws(() => bchGraduationCurveFromManifestV1(mV2, terms,
+  { ...grad, stateArchiveScript: binToHex(OWNER.lock) }, CURVE_V2, BIN, COLLECTOR, net), /curve script differs/);
+console.log('Mesh Blaze BCH market and graduation constructors: 15 assertions passed');

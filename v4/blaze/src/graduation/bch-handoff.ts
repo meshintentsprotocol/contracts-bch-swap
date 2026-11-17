@@ -50,6 +50,8 @@ function expectedOutputs(m: LaunchManifestV1, curve: SpendableUtxo, sponsor: Spe
   if (!/^[0-9a-f]{64}$/.test(expectedHash) || bchGraduationTermsHashV2(terms) !== expectedHash)
     fail('graduation terms do not match committed hash');
   if (terms.lockedBps !== m.lockedLiquidityBps) fail('lock share differs from launch manifest');
+  if (binToHex(sha256.hash(scriptBytes(terms.lockedBinScript))) !== m.marketScriptHash)
+    fail('locked market script differs from launch manifest');
   if ([terms.lockedPositionCategory, terms.creatorPositionCategory].includes(m.tokenCategory))
     fail('position category must differ from launch token');
   if (networkFee < 0n || networkFee > 5_000n) fail('network fee outside cap');
