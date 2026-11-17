@@ -12,8 +12,10 @@ function accrue(tokenAmount = 10n, recipient = lockOf(collector), before = 0n) {
   const builder = tb();
   builder.addInput(utxo(collector.lockingBytecode, 1_000n,
     before > 0n ? { category: TOKEN_B, amount: before } : undefined), collector.unlock.accrue());
-  builder.addInput(utxo(TAKER.lock, 3_000n, { category: TOKEN_B, amount: 10n }), TAKER.template.unlockP2PKH());
-  builder.addOutput({ to: recipient, amount: 1_000n, token: { category: TOKEN_B, amount: tokenAmount } });
+  builder.addInput(utxo(TAKER.lock, 3_000n,
+    tokenAmount > 0n ? { category: TOKEN_B, amount: 10n } : undefined), TAKER.template.unlockP2PKH());
+  builder.addOutput({ to: recipient, amount: 1_000n,
+    ...(tokenAmount > 0n ? { token: { category: TOKEN_B, amount: tokenAmount } } : {}) });
   builder.addOutput({ to: TAKER.lock, amount: 1_000n });
   return buildTx(builder);
 }
@@ -31,10 +33,11 @@ function rejectedAtCollector(tx: ReturnType<typeof buildTx>) {
   assert.equal(inputMetrics(tx)[0]!.ok, false);
 }
 assert.equal(verify(accrue()), true);
+assert.equal(verify(accrue(0n)), true);
 assert.equal(verify(claim()), true);
 rejectedAtCollector(accrue(9n, lockOf(collector), 10n));
 rejectedAtCollector(accrue(10n, OWNER.lock));
 rejectedAtCollector(claim(TAKER.lock));
 rejectedAtCollector(claim(OWNER.lock, 9n));
 rejectedAtCollector(claim(OWNER.lock, 10n, 2_500n));
-console.log('Mesh Blaze quote-token fee collector VM: 7 checks passed');
+console.log('Mesh Blaze quote-token fee collector VM: 8 checks passed');

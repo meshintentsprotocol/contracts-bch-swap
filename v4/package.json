@@ -16,6 +16,8 @@
     "build:blaze:token-base-vault": "cashc blaze/contracts/curve/MeshBlazeTokenBaseVaultV1.cash -o blaze/artifacts/MeshBlazeTokenBaseVaultV1.json",
     "build:blaze:token-graduation-prototype": "cashc blaze/contracts/curve/MeshBlazeTokenQuoteVaultV2Prototype.cash -o blaze/artifacts/MeshBlazeTokenQuoteVaultV2Prototype.json && cashc blaze/contracts/curve/MeshBlazeTokenBaseVaultV2Prototype.cash -o blaze/artifacts/MeshBlazeTokenBaseVaultV2Prototype.json",
     "build:blaze:token-fee-collector": "cashc blaze/contracts/market/MeshBlazeTokenFeeCollectorV1.cash -o blaze/artifacts/MeshBlazeTokenFeeCollectorV1.json",
+    "build:blaze:token-market-locked": "cashc blaze/contracts/market/MeshBlazeTokenMarketQuoteLockedV1.cash -o blaze/artifacts/MeshBlazeTokenMarketQuoteLockedV1.json && cashc blaze/contracts/market/MeshBlazeTokenMarketBaseLockedV1.cash -o blaze/artifacts/MeshBlazeTokenMarketBaseLockedV1.json",
+    "build:blaze:token-market-owned": "cashc blaze/contracts/market/MeshBlazeTokenMarketQuoteOwnedV1.cash -o blaze/artifacts/MeshBlazeTokenMarketQuoteOwnedV1.json && cashc blaze/contracts/market/MeshBlazeTokenMarketBaseOwnedV1.cash -o blaze/artifacts/MeshBlazeTokenMarketBaseOwnedV1.json",
     "build:spikes": "cashc contracts/spikes/MeshBinP2S.cash -o artifacts/spikes/MeshBinP2S.json && cashc contracts/spikes/BinValidatorV4.cash -o artifacts/spikes/BinValidatorV4.json && cashc contracts/spikes/PositionManagerV4.cash -o artifacts/spikes/PositionManagerV4.json && cashc contracts/spikes/GridProbe.cash -o artifacts/spikes/GridProbe.json && cashc contracts/spikes/MeshBinV4Grid.cash -o artifacts/spikes/MeshBinV4Grid.json",
     "build:fixtures": "cashc test/fixtures/SelfTest.cash -o test/fixtures/SelfTest.json && cashc test/fixtures/ManagerStub.cash -o test/fixtures/ManagerStub.json",
     "test": "tsx test/run_all.ts",
@@ -35,6 +37,8 @@
     "test:blaze:token-pair": "tsx blaze/test/token-pair.vm.test.ts",
     "test:blaze:token-graduation-prototype": "tsx blaze/test/token-pair-graduation-plan.test.ts && tsx blaze/test/token-pair-graduation.vm.test.ts",
     "test:blaze:token-fee-collector": "tsx blaze/test/token-fee-collector.vm.test.ts",
+    "test:blaze:token-market-locked": "tsx blaze/test/token-market-locked.vm.test.ts",
+    "test:blaze:token-market-owned": "tsx blaze/test/token-market-owned.vm.test.ts",
     "typecheck": "tsc -p .",
     "build:variants": "cashc contracts/variants/MeshBinV4Locked.cash -o artifacts/variants/MeshBinV4Locked.json && cashc contracts/variants/MeshBinV4Vesting.cash -o artifacts/variants/MeshBinV4Vesting.json && cashc contracts/variants/MeshBinV4FeeSchedule.cash -o artifacts/variants/MeshBinV4FeeSchedule.json && cashc contracts/variants/MeshBinV4SizeFee.cash -o artifacts/variants/MeshBinV4SizeFee.json",
     "vectors": "tsx tools/gen-v4-vectors.ts"

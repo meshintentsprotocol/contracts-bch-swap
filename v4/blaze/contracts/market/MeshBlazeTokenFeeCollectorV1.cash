@@ -14,8 +14,9 @@ contract MeshBlazeTokenFeeCollectorV1(bytes32 quoteCat, bytes32 recipientScriptH
         int after = tx.outputs[i].tokenAmount;
         if (before == 0) require(tx.inputs[i].tokenCategory == 0x);
         else require(tx.inputs[i].tokenCategory == quoteCat);
-        require(tx.outputs[i].tokenCategory == quoteCat);
-        require(after > before);
+        require(after >= before);
+        if (after == 0) require(tx.outputs[i].tokenCategory == 0x);
+        else require(tx.outputs[i].tokenCategory == quoteCat);
     }
 
     function claim() {
