@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { binToHex, sha256 } from '@bitauth/libauth';
+import { binToHex, encodeTransaction, hashTransaction, sha256 } from '@bitauth/libauth';
 import { Contract } from 'cashscript';
 import { KEEPER, OWNER, TAKER, TOKEN_A, TOKEN_B, catVm, le, net, nft, tb, utxo, buildTx, verify, lockOf } from '../../test/harness.js';
 import { encodeCurveStateV1 } from '../src/curve/state.js';
+import { planBchCurveBuyV1 } from '../src/curve/buy-plan.js';
+import { planBchCurveClaimV1, planBchCurveSellV1 } from '../src/curve/sell-claim-plan.js';
+import { buildSignedBchCurveAction } from '../src/curve/bch-signed-trades.js';
 import { bchGraduationTermsHashV2, planBchGraduationV2, type BchGraduationTermsV2 } from '../src/graduation/bch-handoff.js';
 import { buildSignedBchGraduationV2 } from '../src/graduation/bch-signed-handoff.js';
 import type { LaunchManifestV1 } from '../src/manifest/v1.js';
@@ -37,13 +40,13 @@ const feeCreator = new Contract(FEE_OWNED, [`0x${catVm(TOKEN_A)}`, `0x${catVm('1
   ...collectors.map((c) => `0x${h(lockOf(c))}`),
   `0x${le(30n, 2)}`, `0x${le(800n, 2)}`, `0x${le(200n, 2)}`, `0x${le(1_000n, 2)}`],
   { provider: net, contractType: 'p2sh32' });
-function curveFor(lockBps: bigint, lockedScript = lockOf(locked), creatorScript = lockOf(creator), bid = 7n, ask = 8n) { return new Contract(CURVE, [`0x${catVm(TOKEN_A)}`, `0x${le(100_000n, 8)}`,
+function curveFor(lockBps: bigint, lockedScript = lockOf(locked), creatorScript = lockOf(creator), bid = 7n, ask = 8n, bidDen = 1n, askDen = 1n) { return new Contract(CURVE, [`0x${catVm(TOKEN_A)}`, `0x${le(100_000n, 8)}`,
   `0x${le(1_000_000n, 8)}`, `0x${le(500_003n, 8)}`, `0x${le(1_000n, 8)}`,
   `0x${le(50n, 2)}`, `0x${le(25n, 2)}`, `0x${le(25n, 2)}`,
   `0x${h(OWNER.lock)}`, `0x${h(TAKER.lock)}`, `0x${h(KEEPER.lock)}`,
   `0x${h(lockedScript)}`, `0x${h(creatorScript)}`, `0x${h(lockOf(archive))}`, `0x${le(lockBps, 2)}`,
   ...collectors.map((c) => `0x${h(lockOf(c))}`), `0x${le(1_000n, 8)}`,
-  `0x${le(bid, 8)}`, `0x${le(1n, 8)}`, `0x${le(ask, 8)}`, `0x${le(1n, 8)}`,
+  `0x${le(bid, 8)}`, `0x${le(bidDen, 8)}`, `0x${le(ask, 8)}`, `0x${le(askDen, 8)}`,
 ], { provider: net, contractType: 'p2sh32' }); }
 const curve = curveFor(9_000n);
 function signedFixture(lockBps = 9_000, networkFee = 4_000n) {
@@ -74,6 +77,109 @@ function signedFixture(lockBps = 9_000, networkFee = 4_000n) {
   const plan = planBchGraduationV2(m, source, sponsor, terms,
     bchGraduationTermsHashV2(terms), networkFee);
   return { m, c, plan };
+}
+function reachableLifecycle() {
+  const marketArgs = [`0x${catVm(TOKEN_A)}`, `0x${le(2n, 8)}`, `0x${le(1n, 8)}`,
+    `0x${le(21n, 8)}`, `0x${le(10n, 8)}`];
+  const feeArgs = [...collectors.map((collector) => `0x${h(lockOf(collector))}`),
+    `0x${le(30n, 2)}`, `0x${le(800n, 2)}`, `0x${le(200n, 2)}`, `0x${le(1_000n, 2)}`];
+  const marketLocked = new Contract(FEE_BIN, [...marketArgs, ...feeArgs],
+    { provider: net, contractType: 'p2sh32' });
+  const marketOwned = new Contract(FEE_OWNED, [marketArgs[0]!, `0x${catVm('11'.repeat(32))}`,
+    ...marketArgs.slice(1), ...feeArgs], { provider: net, contractType: 'p2sh32' });
+  const c = curveFor(9_000n, lockOf(marketLocked), lockOf(marketOwned), 2n, 21n, 1n, 10n);
+  const zero = '00'.repeat(32);
+  const rights = { creator: { scriptHash: h(OWNER.lock), bps: 50 },
+    partner: { scriptHash: h(TAKER.lock), bps: 25 }, protocol: { scriptHash: h(KEEPER.lock), bps: 25 } };
+  const m: LaunchManifestV1 = {
+    version: 1, tokenCategory: TOKEN_A, quoteCategory: null, totalSupply: 1_000_000n,
+    allocations: [{ name: 'curve', amount: 1_000_000n, satoshis: 1_000n,
+      lockingBytecode: c.lockingBytecode,
+      nftCommitment: encodeCurveStateV1({ stage: 0, realQuote: 0n, creatorFees: 0n,
+        partnerFees: 0n, protocolFees: 0n }) }],
+    activationHeight: 400_000, alphaStartHeight: 0, alphaEndHeight: 0, presaleRoute: null,
+    presaleScriptHash: zero, alphaModes: 0, alphaFixedScriptHash: zero, alphaBuyScriptHash: zero,
+    virtualBase: 100_000n, virtualQuote: 1_000_000n, graduationQuoteThreshold: 500_003n,
+    lockedLiquidityBps: 9_000, curveScriptHash: h(lockOf(c)), quoteVaultScriptHash: zero,
+    quoteVaultCarrierSats: 0n, graduationScriptHash: h(OWNER.lock),
+    marketScriptHash: h(lockOf(marketLocked)), curveFees: rights, marketFees: rights,
+  };
+  let curveInput = utxo(c.lockingBytecode, 1_000n,
+    nft(TOKEN_A, 'mutable', m.allocations[0]!.nftCommitment!, 1_000_000n));
+  const openingPlan = planBchCurveBuyV1(m, curveInput, utxo(TAKER.lock, 900_000n),
+    100_000n, 4_000n, 1n);
+  const opening = buildSignedBchCurveAction(net, m, openingPlan, c, TAKER.template, 'buy');
+  assert.equal(verify(opening), true);
+  assert.equal(openingPlan.quote.complete, false);
+  curveInput = utxo(c.lockingBytecode, openingPlan.outputs[0].satoshis,
+    openingPlan.outputs[0].token, 0, opening.txid);
+  const soldTokens = utxo(TAKER.lock, openingPlan.outputs[1].satoshis,
+    openingPlan.outputs[1].token, 1, opening.txid);
+  const sellPlan = planBchCurveSellV1(m, curveInput, soldTokens, 4_000n, 1n);
+  const sold = buildSignedBchCurveAction(net, m, sellPlan, c, TAKER.template, 'sell');
+  assert.equal(verify(sold), true);
+  curveInput = utxo(c.lockingBytecode, sellPlan.outputs[0].satoshis,
+    sellPlan.outputs[0].token, 0, sold.txid);
+  const buyPlan = planBchCurveBuyV1(m, curveInput, utxo(TAKER.lock, 900_000n), 800_000n, 4_000n, 1n);
+  const bought = buildSignedBchCurveAction(net, m, buyPlan, c, TAKER.template, 'buy');
+  assert.equal(verify(bought), true);
+  assert.equal(buyPlan.quote.complete, true);
+  curveInput = utxo(c.lockingBytecode, buyPlan.outputs[0].satoshis,
+    buyPlan.outputs[0].token, 0, bought.txid);
+  for (const [role, recipient, signer] of [[0, OWNER, OWNER], [1, TAKER, OWNER],
+    [2, KEEPER, OWNER]] as const) {
+    const claimPlan = planBchCurveClaimV1(m, curveInput, utxo(signer.lock, 10_000n),
+      role, binToHex(recipient.lock), 4_000n);
+    const claimed = buildSignedBchCurveAction(net, m, claimPlan, c, signer.template, 'claim');
+    assert.equal(verify(claimed), true);
+    curveInput = utxo(c.lockingBytecode, claimPlan.outputs[0].satoshis,
+      claimPlan.outputs[0].token, 0, claimed.txid);
+  }
+  const terms: BchGraduationTermsV2 = { lockedBinScript: marketLocked.lockingBytecode,
+    creatorBinScript: marketOwned.lockingBytecode, stateArchiveScript: archive.lockingBytecode,
+    lockedPositionCategory: TOKEN_B, creatorPositionCategory: '11'.repeat(32), lockedBps: 9_000,
+    collectorScripts: collectors.map((collector) => collector.lockingBytecode) as [string, string, string],
+    collectorCarrierSats: 1_000n };
+  const handoff = planBchGraduationV2(m, curveInput, utxo(OWNER.lock, 10_000n),
+    terms, bchGraduationTermsHashV2(terms), 4_000n);
+  const graduated = buildSignedBchGraduationV2(net, m, handoff, c, OWNER.template);
+  assert.equal(verify(graduated), true);
+  assert.equal(handoff.split.lockedQuote, 450_003n);
+  const marketTrade = tb();
+  marketTrade.addInput(utxo(marketLocked.lockingBytecode, handoff.outputs[0]!.satoshis,
+    handoff.outputs[0]!.token, 0, graduated.txid), marketLocked.unlock.buy());
+  for (let i = 0; i < collectors.length; i++) {
+    const collector = collectors[i]!;
+    marketTrade.addInput(utxo(collector.lockingBytecode, 1_000n, undefined, i + 3,
+      graduated.txid), collector.unlock.accrue());
+  }
+  marketTrade.addInput(utxo(TAKER.lock, 50_000n), TAKER.template.unlockP2PKH());
+  marketTrade.addOutput({ to: lockOf(marketLocked), amount: handoff.outputs[0]!.satoshis + 21_050n,
+    token: { category: TOKEN_A, amount: handoff.outputs[0]!.token!.amount - 10_000n } });
+  marketTrade.addOutput({ to: lockOf(collectors[0]!), amount: 1_005n });
+  marketTrade.addOutput({ to: lockOf(collectors[1]!), amount: 1_001n });
+  marketTrade.addOutput({ to: lockOf(collectors[2]!), amount: 1_007n });
+  marketTrade.addOutput({ to: TAKER.lock, amount: 1_000n,
+    token: { category: TOKEN_A, amount: 10_000n } });
+  marketTrade.addOutput({ to: TAKER.lock, amount: 23_937n });
+  const marketBuilt = buildTx(marketTrade);
+  assert.equal(verify(marketBuilt), true);
+  for (let i = 0; i < collectors.length; i++) {
+    const collector = collectors[i]!;
+    const recipient = [OWNER, TAKER, KEEPER][i]!;
+    const accrued = [5n, 1n, 7n][i]!;
+    const topUp = 546n - accrued;
+    const claim = tb();
+    claim.addInput(utxo(collector.lockingBytecode, 1_000n + accrued, undefined,
+      i + 1, hashTransaction(encodeTransaction(marketBuilt.transaction))),
+      collector.unlock.claim());
+    claim.addInput(utxo(OWNER.lock, 10_000n), OWNER.template.unlockP2PKH());
+    claim.addOutput({ to: lockOf(collector), amount: 1_000n });
+    claim.addOutput({ to: recipient.lock, amount: 546n });
+    claim.addOutput({ to: OWNER.lock, amount: 10_000n - topUp - 4_000n });
+    assert.equal(verify(buildTx(claim)), true);
+  }
+  console.log(`reachable E1 partial chain: opening ${opening.size} B, sell ${sold.size} B, terminal buy ${bought.size} B, graduation ${graduated.size} B, market buy ${marketBuilt.size} B`);
 }
 
 function spend(tamper: 'none' | 'lockedScript' | 'creatorScript' | 'base' | 'quote' | 'archive' | 'collector' | 'sponsor' | 'fees' | 'stage' = 'none', feeMarket = false, bid = 7n, ask = 8n) {
@@ -107,6 +213,7 @@ function spendAll(tamper: 'none' | 'base' | 'quote' = 'none') {
   return b;
 }
 const cases: Array<[string, () => void]> = [
+  ['reachable genesis state buys to completion, claims all fees and graduates', reachableLifecycle],
   ['signed graduation handoff passes BCH VM', () => {
     const { m, c, plan } = signedFixture();
     const built = buildSignedBchGraduationV2(net, m, plan, c, OWNER.template);
