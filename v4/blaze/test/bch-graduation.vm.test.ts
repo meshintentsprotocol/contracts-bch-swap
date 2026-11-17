@@ -9,6 +9,7 @@ const artifact = (path: string) => JSON.parse(readFileSync(path, 'utf8'));
 const CURVE = artifact('blaze/artifacts/MeshBlazeBchCurveV2Prototype.json');
 const COLLECTOR = artifact('blaze/artifacts/MeshBlazeBchFeeCollectorV1.json');
 const FEE_BIN = artifact('blaze/artifacts/MeshBlazeBchFeeBinLockedV1.json');
+const ARCHIVE = artifact('blaze/artifacts/MeshBlazeStateArchiveV1.json');
 const LOCKED = artifact('artifacts/variants/MeshBinV4Locked.json');
 const CREATOR = artifact('artifacts/MeshBinV4.json');
 const h = (bytes: Uint8Array) => binToHex(sha256.hash(bytes));
@@ -20,6 +21,7 @@ function bin(a: object, ownerCat: string) {
 }
 const locked = bin(LOCKED, TOKEN_B);
 const creator = bin(CREATOR, '11'.repeat(32));
+const archive = new Contract(ARCHIVE, [], { provider: net, contractType: 'p2sh32' });
 const collectors = [OWNER, TAKER, KEEPER].map((key) => new Contract(COLLECTOR,
   [`0x${h(key.lock)}`, `0x${le(1_000n, 8)}`], { provider: net, contractType: 'p2sh32' }));
 const feeLocked = new Contract(FEE_BIN, [`0x${catVm(TOKEN_A)}`, `0x${le(7n, 8)}`, `0x${le(1n, 8)}`,
@@ -30,7 +32,7 @@ function curveFor(lockBps: bigint, lockedScript = lockOf(locked)) { return new C
   `0x${le(1_000_000n, 8)}`, `0x${le(500_003n, 8)}`, `0x${le(1_000n, 8)}`,
   `0x${le(50n, 2)}`, `0x${le(25n, 2)}`, `0x${le(25n, 2)}`,
   `0x${h(OWNER.lock)}`, `0x${h(TAKER.lock)}`, `0x${h(KEEPER.lock)}`,
-  `0x${h(lockedScript)}`, `0x${h(lockOf(creator))}`, `0x${h(KEEPER.lock)}`, `0x${le(lockBps, 2)}`,
+  `0x${h(lockedScript)}`, `0x${h(lockOf(creator))}`, `0x${h(lockOf(archive))}`, `0x${le(lockBps, 2)}`,
   ...collectors.map((c) => `0x${h(lockOf(c))}`), `0x${le(1_000n, 8)}`,
 ], { provider: net, contractType: 'p2sh32' }); }
 const curve = curveFor(9_000n);
@@ -48,7 +50,7 @@ function spend(tamper: 'none' | 'lockedScript' | 'base' | 'quote' | 'archive' | 
     token: { category: TOKEN_A, amount: tamper === 'base' ? 90_000n : 90_001n } });
   b.addOutput({ to: lockOf(creator), amount: 51_000n,
     token: { category: TOKEN_A, amount: tamper === 'base' ? 10_001n : 10_000n } });
-  b.addOutput({ to: KEEPER.lock, amount: 1_000n, token: nft(TOKEN_A, 'mutable', tamper === 'archive' ? '01' : s) });
+  b.addOutput({ to: lockOf(archive), amount: 1_000n, token: nft(TOKEN_A, 'mutable', tamper === 'archive' ? '01' : s) });
   for (let i = 0; i < 3; i++) b.addOutput({ to: tamper === 'collector' && i === 0 ? OWNER.lock : lockOf(collectors[i]!), amount: 1_000n });
   b.addOutput({ to: tamper === 'sponsor' ? TAKER.lock : OWNER.lock, amount: 4_000n });
   return b;
@@ -60,7 +62,7 @@ function spendAll(tamper: 'none' | 'base' | 'quote' = 'none') {
   b.addInput(utxo(OWNER.lock, 10_000n), OWNER.template.unlockP2PKH());
   b.addOutput({ to: lockOf(locked), amount: tamper === 'quote' ? 501_002n : 501_003n,
     token: { category: TOKEN_A, amount: tamper === 'base' ? 100_000n : 100_001n } });
-  b.addOutput({ to: KEEPER.lock, amount: 1_000n, token: nft(TOKEN_A, 'mutable', state) });
+  b.addOutput({ to: lockOf(archive), amount: 1_000n, token: nft(TOKEN_A, 'mutable', state) });
   for (const c of collectors) b.addOutput({ to: lockOf(c), amount: 1_000n });
   b.addOutput({ to: OWNER.lock, amount: 5_000n });
   return b;

@@ -13,6 +13,8 @@ import type { LaunchManifestV1 } from '../src/manifest/v1.js';
 const BIN = JSON.parse(readFileSync('blaze/artifacts/MeshBlazeBchFeeBinLockedV1.json', 'utf8'));
 const COLLECTOR = JSON.parse(readFileSync('blaze/artifacts/MeshBlazeBchFeeCollectorV1.json', 'utf8'));
 const CURVE_V2 = JSON.parse(readFileSync('blaze/artifacts/MeshBlazeBchCurveV2Prototype.json', 'utf8'));
+const ARCHIVE = JSON.parse(readFileSync('blaze/artifacts/MeshBlazeStateArchiveV1.json', 'utf8'));
+const archive = new Contract(ARCHIVE, [], { provider: net, contractType: 'p2sh32' });
 const hash = (script: string) => binToHex(sha256.hash(hexToBin(script)));
 const terms: BchMarketTermsV1 = { bidNum: 7n, bidDen: 1n, askNum: 8n, askDen: 1n,
   tradingFeeBps: 30, collectorCarrierSats: 1_000n };
@@ -67,7 +69,7 @@ assert.throws(() => validateBchMarketArithmeticV1(m, { ...terms, askNum: (1n << 
 assert.throws(() => validateBchMarketArithmeticV1({ ...m, quoteCategory: TOKEN_B }, terms), /quote must be BCH/);
 const grad: BchGraduationTermsV2 = {
   lockedBinScript: built.bin.lockingBytecode, creatorBinScript: binToHex(OWNER.lock),
-  stateArchiveScript: binToHex(KEEPER.lock), lockedPositionCategory: TOKEN_B,
+  stateArchiveScript: archive.lockingBytecode, lockedPositionCategory: TOKEN_B,
   creatorPositionCategory: '11'.repeat(32), lockedBps: 9_000,
   collectorScripts: [built.creatorCollector.lockingBytecode, built.partnerCollector.lockingBytecode,
     built.protocolCollector.lockingBytecode], collectorCarrierSats: 1_000n,
@@ -83,15 +85,16 @@ const curveV2 = new Contract(CURVE_V2, [`0x${catVm(TOKEN_A)}`,
   `0x${le(1_000n, 8)}`], { provider: net, contractType: 'p2sh32' });
 const mV2 = { ...m, curveScriptHash: hash(curveV2.lockingBytecode),
   allocations: [{ ...m.allocations[0]!, lockingBytecode: curveV2.lockingBytecode }] };
-const linked = bchGraduationCurveFromManifestV1(mV2, terms, grad, CURVE_V2, BIN, COLLECTOR, net);
+const linked = bchGraduationCurveFromManifestV1(mV2, terms, grad, CURVE_V2, BIN, COLLECTOR, ARCHIVE, net);
 assert.equal(linked.curve.lockingBytecode, curveV2.lockingBytecode);
 assert.equal(linked.market.bin.lockingBytecode, grad.lockedBinScript);
+assert.equal(linked.archive.bytecode, '00');
 assert.throws(() => bchGraduationCurveFromManifestV1(mV2, terms,
-  { ...grad, creatorBinScript: binToHex(TAKER.lock) }, CURVE_V2, BIN, COLLECTOR, net), /curve script differs/);
+  { ...grad, creatorBinScript: binToHex(TAKER.lock) }, CURVE_V2, BIN, COLLECTOR, ARCHIVE, net), /curve script differs/);
 assert.throws(() => bchGraduationCurveFromManifestV1(mV2, terms,
-  { ...grad, lockedBinScript: binToHex(TAKER.lock) }, CURVE_V2, BIN, COLLECTOR, net), /locked destination/);
+  { ...grad, lockedBinScript: binToHex(TAKER.lock) }, CURVE_V2, BIN, COLLECTOR, ARCHIVE, net), /locked destination/);
 assert.throws(() => bchGraduationCurveFromManifestV1(mV2, terms,
-  { ...grad, stateArchiveScript: binToHex(OWNER.lock) }, CURVE_V2, BIN, COLLECTOR, net), /curve script differs/);
+  { ...grad, stateArchiveScript: binToHex(OWNER.lock) }, CURVE_V2, BIN, COLLECTOR, ARCHIVE, net), /state archive/);
 assert.throws(() => bchGraduationCurveFromManifestV1(mV2, terms,
-  { ...grad, collectorCarrierSats: 2_000n }, CURVE_V2, BIN, COLLECTOR, net), /collector destinations/);
-console.log('Mesh Blaze BCH market and graduation constructors: 16 assertions passed');
+  { ...grad, collectorCarrierSats: 2_000n }, CURVE_V2, BIN, COLLECTOR, ARCHIVE, net), /collector destinations/);
+console.log('Mesh Blaze BCH market and graduation constructors: 17 assertions passed');

@@ -1,0 +1,10 @@
+pragma cashscript ^0.14.0;
+
+// Permanent destination for the unique launch-curve state NFT at graduation.
+// The only ABI path always fails. A valid spend of a P2SH32 output requires
+// this exact redeem script, so no creator, keeper or protocol key can exit.
+contract MeshBlazeStateArchiveV1() {
+    function archive() {
+        require(false);
+    }
+}

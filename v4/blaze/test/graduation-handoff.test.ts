@@ -19,9 +19,11 @@ function v4Bin(path: string, ownerCat: string): Contract {
 }
 const lockedBin = v4Bin('artifacts/variants/MeshBinV4Locked.json', TOKEN_B);
 const creatorBin = v4Bin('artifacts/MeshBinV4.json', '11'.repeat(32));
+const archive = new Contract(JSON.parse(readFileSync('blaze/artifacts/MeshBlazeStateArchiveV1.json', 'utf8')),
+  [], { provider: net, contractType: 'p2sh32' });
 const terms: BchGraduationTermsV2 = {
   lockedBinScript: lockedBin.lockingBytecode, creatorBinScript: creatorBin.lockingBytecode,
-  stateArchiveScript: binToHex(KEEPER.lock), lockedPositionCategory: TOKEN_B,
+  stateArchiveScript: archive.lockingBytecode, lockedPositionCategory: TOKEN_B,
   creatorPositionCategory: '11'.repeat(32), lockedBps: 9_000,
   collectorScripts: [binToHex(OWNER.lock), binToHex(TAKER.lock), binToHex(KEEPER.lock)],
   collectorCarrierSats: 1_000n,
