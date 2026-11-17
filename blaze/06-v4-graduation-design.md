@@ -1,6 +1,6 @@
 # Mesh Blaze to V4 graduation contract boundary
 
-Status: design gate, 2026-11-17. The existing BCH-quote curve has no graduation path. No market funding is yet authorized by its covenant. This document fixes the handoff invariants before a script is added.
+Status: design and unsigned-plan gate, 2026-11-17. The existing BCH-quote curve has no graduation path. No market funding is yet authorized by its covenant. The draft V2 terms hash and unsigned handoff plan under `v4/blaze/src/graduation/` have 15 local assertions; the fixture reconstructs the existing V4 locked and owner-controlled bin scripts. The plan is not transaction authorization.
 
 ## BCH quote: actual V4 funding
 
@@ -20,7 +20,7 @@ For remaining base amount `B` and real quote `Q`, committed lock setting `L` bas
 
 ## Contract and builder work order
 
-1. Specify a versioned graduation terms commitment with exact destination scripts or a bounded Merkle commitment to a finite bin set. Commit price grid, locked share, creator share, output order, position NFT categories, carriers and archive destination. Reject any launch manifest whose terms do not reconstruct the actual covenants. Existing draft Manifest V1 is not frozen; update it before a public launch.
+1. Specify a versioned graduation terms commitment with exact destination scripts or a bounded Merkle commitment to a finite bin set. The draft `bchGraduationTermsHashV2` commits three exact scripts, two position categories and the lock percentage; the unsigned plan checks it against a supplied hash. **No launch manifest or curve constructor pins that hash yet.** Extend the commitment to cover fee-bearing market artifacts, price/depth bounds, output order, carriers and state-NFT archive semantics, then pin it on-chain. Existing draft Manifest V1 is not frozen; update it before a public launch.
 2. Implement a V4 BCH/token fee-bearing locked-bin variant and a creator-share variant, or a composite settlement design, with claimable three-way fees and no locked-principal exit. Prove fees cannot be taken from principal or bypassed by a fill.
 3. Add `graduate()` to a new versioned BCH curve artifact. Require stage 1, exact threshold, zero curve fee balances, unchanged category and total asset accounting, committed bin outputs, lock minimums for **both** assets, and fixed NFT destination. Test malicious output substitution, rounding, underfunded dust, fee theft and forged position ownership.
 4. Build an unsigned graduation plan from the manifest and live UTXOs, then independently verify all outputs. Sign and execute a full chipnet lifecycle; record curve completion, fee claims, graduation, post-grad swap and three market fee claims as txids with decoded output proof.
