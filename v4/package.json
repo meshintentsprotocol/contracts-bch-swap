@@ -23,6 +23,7 @@
     "test:blaze:bch-graduation-prototype": "tsx blaze/test/bch-graduation.vm.test.ts",
     "test:blaze:bch-fee-collector": "tsx blaze/test/bch-fee-collector.vm.test.ts",
     "test:blaze:bch-fee-bin": "tsx blaze/test/bch-fee-bin.vm.test.ts",
+    "test:blaze:bch-market-constructor": "tsx blaze/test/bch-market-constructor.test.ts",
     "test:blaze:curve-contract": "tsx blaze/test/curve-contract.test.ts",
     "test:blaze:token-quote-vault": "tsx blaze/test/token-quote-vault.vm.test.ts",
     "test:blaze:token-pair": "tsx blaze/test/token-pair.vm.test.ts",
