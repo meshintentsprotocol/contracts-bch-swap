@@ -1,0 +1,41 @@
+pragma cashscript ^0.14.0;
+
+// Quote-CashToken fee accumulator for one immutable recipient. The paired
+// market must enforce exact fee deltas on every trade. Claims require a BCH
+// sponsor for the recipient's token carrier and the network fee.
+contract MeshBlazeTokenFeeCollectorV1(bytes32 quoteCat, bytes32 recipientScriptHash, bytes8 carrier) {
+    function accrue() {
+        int i = this.activeInputIndex;
+        require(int(carrier) >= 1000);
+        require(tx.inputs[i].value == int(carrier) && tx.outputs[i].value == int(carrier));
+        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+        require(tx.inputs[i].nftCommitment == 0x && tx.outputs[i].nftCommitment == 0x);
+        int before = tx.inputs[i].tokenAmount;
+        int after = tx.outputs[i].tokenAmount;
+        if (before == 0) require(tx.inputs[i].tokenCategory == 0x);
+        else require(tx.inputs[i].tokenCategory == quoteCat);
+        require(tx.outputs[i].tokenCategory == quoteCat);
+        require(after > before);
+    }
+
+    function claim() {
+        require(this.activeInputIndex == 0 && tx.inputs.length == 2 && tx.outputs.length == 3);
+        require(int(carrier) >= 1000);
+        require(tx.inputs[0].tokenCategory == quoteCat && tx.inputs[0].nftCommitment == 0x);
+        int amount = tx.inputs[0].tokenAmount;
+        require(amount > 0 && tx.inputs[0].value == int(carrier));
+        require(tx.inputs[1].tokenCategory == 0x && tx.inputs[1].nftCommitment == 0x);
+        require(tx.outputs[0].tokenCategory == 0x && tx.outputs[0].nftCommitment == 0x);
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+        require(tx.outputs[0].value == int(carrier));
+        require(tx.outputs[1].tokenCategory == quoteCat && tx.outputs[1].tokenAmount == amount);
+        require(tx.outputs[1].nftCommitment == 0x);
+        require(sha256(tx.outputs[1].lockingBytecode) == recipientScriptHash);
+        require(tx.outputs[1].value >= 1000);
+        require(tx.outputs[2].tokenCategory == 0x && tx.outputs[2].nftCommitment == 0x);
+        require(tx.outputs[2].lockingBytecode == tx.inputs[1].lockingBytecode);
+        require(tx.outputs[2].value >= 546);
+        require(tx.outputs[2].value + tx.outputs[1].value < tx.inputs[1].value);
+        require(tx.outputs[2].value + tx.outputs[1].value >= tx.inputs[1].value - 5000);
+    }
+}
