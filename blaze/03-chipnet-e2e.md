@@ -30,6 +30,8 @@ The linked local E1 fixture starts at an empty curve state, signs an opening buy
 
 Read-only connectivity check on 2026-11-17: CashScript's chipnet Electrum provider returned height **335,151**. The public recipient address in the prior V4 position-test state (`bchtest:zpmnrn7s7c426vr849r3rs4euxsk3n2ghgkrfhvfx7`) had **99,044 BCH-only sats** in one UTXO and no token UTXOs. This address has not been designated as the isolated Blaze E1 funder; its observed balance is 900,956 sats below the 0.01 tBCH target. No key was loaded and no transaction was broadcast in this check.
 
+A later read-only run of `v4/blaze/tools/chipnet-readiness.ts` derived the existing chipnet test funder's public address from the locally configured key without displaying the key. At height **335,165**, `bchtest:qqn9dyqwpn00nck874ncgr33gfpdzs3sts25n72dev` had **12,524,312 BCH-only sats** across 68 UTXOs (largest **3,718,102 sats**) and 149 token UTXOs. This clears the 1,000,000-sat funding target in aggregate and in one UTXO. The command only queried Electrum; no transaction was signed or sent. A dedicated Blaze wallet, source-UTXO selection and a complete chipnet plan still precede broadcast.
+
 ## Existing baseline, not Blaze E2E
 
 The repo has `v4/tools/chipnet-position-genesis.ts` for a live position-NFT seed/genesis and `v4/tools/resolve-position-metadata.ts` for a read-only chain/BCMR verification. The V4 local suite is `npm.cmd test` in `v4`. The current run result and any chipnet query result are recorded below after execution. Neither script exercises a Blaze token launch, because Blaze contracts and builders are not implemented yet.
