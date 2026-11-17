@@ -1,5 +1,7 @@
 /** Recheck saved signed E1 genesis plan against current chipnet UTXOs. Read-only. */
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { binToHex, cashAddressToLockingBytecode, createVirtualMachineBch2026,
   decodeTransaction, encodeTransaction, hashTransaction, hexToBin,
   type Output, type Transaction } from '@bitauth/libauth';
@@ -24,7 +26,7 @@ function checkVm(name: string, transaction: Transaction, sourceOutputs: Output[]
 function artifact(name: string) {
   return JSON.parse(readFileSync(`blaze/artifacts/${name}.json`, 'utf8'));
 }
-async function main() {
+export async function checkChipnetE1Plan() {
   const bigInts = new Set(['amount', 'satoshis', 'totalSupply', 'virtualBase', 'virtualQuote',
     'graduationQuoteThreshold', 'quoteVaultCarrierSats', 'collectorCarrierSats',
     'bidNum', 'bidDen', 'askNum', 'askDen']);
@@ -82,8 +84,11 @@ async function main() {
     sourceOutpoints: plan.sourceOutpoints, tokenCategory: plan.tokenCategory,
     creatorPositionCategory: plan.creatorPositionCategory, manifestHash: plan.manifestHash,
     bundleHash, signedTransactionsVmValid: 4 }));
+  return plan;
 }
-main().then(() => process.exit(0)).catch((error) => {
-  console.error(`chipnet E1 check: ${error instanceof Error ? error.message : 'unknown error'}`);
-  process.exit(1);
-});
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  checkChipnetE1Plan().then(() => process.exit(0)).catch((error) => {
+    console.error(`chipnet E1 check: ${error instanceof Error ? error.message : 'unknown error'}`);
+    process.exit(1);
+  });
+}
