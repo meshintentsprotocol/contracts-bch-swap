@@ -69,3 +69,24 @@ export function bchFeeMarketFromManifestV1(m: LaunchManifestV1, t: BchMarketTerm
   if (hashScript(bin.lockingBytecode) !== m.marketScriptHash) fail('market script differs from manifest');
   return { bin, creatorCollector: collectors[0]!, partnerCollector: collectors[1]!, protocolCollector: collectors[2]! };
 }
+
+/** Creator-share bin uses the same price, fee and collectors, with only its position NFT enabling principal exit. */
+export function bchOwnedFeeBinFromMarketV1(m: LaunchManifestV1, t: BchMarketTermsV1,
+  ownerCategory: string, market: ReturnType<typeof bchFeeMarketFromManifestV1>,
+  ownedArtifact: Artifact, provider: NetworkProvider): Contract {
+  validateBchMarketArithmeticV1(m, t);
+  if (!/^[0-9a-f]{64}$/.test(ownerCategory) || ownerCategory === m.tokenCategory || /^0+$/.test(ownerCategory))
+    fail('invalid creator position category');
+  const collectors = [market.creatorCollector, market.partnerCollector, market.protocolCollector];
+  return new Contract(ownedArtifact, [
+    `0x${binToHex(hexToBin(m.tokenCategory).reverse())}`,
+    `0x${binToHex(hexToBin(ownerCategory).reverse())}`,
+    fixed(t.bidNum, 8, 'bid numerator'), fixed(t.bidDen, 8, 'bid denominator'),
+    fixed(t.askNum, 8, 'ask numerator'), fixed(t.askDen, 8, 'ask denominator'),
+    ...collectors.map((c) => `0x${hashScript(c.lockingBytecode)}`),
+    fixed(BigInt(t.tradingFeeBps), 2, 'trading fee'),
+    fixed(BigInt(m.marketFees.creator.bps), 2, 'creator share'),
+    fixed(BigInt(m.marketFees.partner.bps), 2, 'partner share'),
+    fixed(BigInt(m.marketFees.protocol.bps), 2, 'protocol share')],
+    { provider, contractType: 'p2sh32' });
+}

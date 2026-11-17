@@ -2,7 +2,7 @@ import { binToHex, hexToBin, sha256 } from '@bitauth/libauth';
 import { Contract, type Artifact, type NetworkProvider } from 'cashscript';
 import { decodeCurveStateV1 } from '../curve/state.js';
 import { launchManifestHashV1, type LaunchManifestV1 } from '../manifest/v1.js';
-import { bchFeeMarketFromManifestV1, type BchMarketTermsV1 } from '../market/bch-market.js';
+import { bchFeeMarketFromManifestV1, bchOwnedFeeBinFromMarketV1, type BchMarketTermsV1 } from '../market/bch-market.js';
 import { bchGraduationTermsHashV2, type BchGraduationTermsV2 } from './bch-handoff.js';
 
 const fail = (reason: string): never => { throw new Error(`Mesh Blaze BCH graduation curve: ${reason}`); };
@@ -17,7 +17,7 @@ function fixed(value: bigint, bytes: 2 | 8): string {
 /** Rebuild both market and V2 curve. Script hashes bind the supplied terms indirectly; no funds are moved. */
 export function bchGraduationCurveFromManifestV1(m: LaunchManifestV1, marketTerms: BchMarketTermsV1,
   graduationTerms: BchGraduationTermsV2, curveArtifact: Artifact, binArtifact: Artifact,
-  collectorArtifact: Artifact, archiveArtifact: Artifact, provider: NetworkProvider) {
+  collectorArtifact: Artifact, ownedBinArtifact: Artifact, archiveArtifact: Artifact, provider: NetworkProvider) {
   launchManifestHashV1(m);
   if (m.quoteCategory !== null) fail('quote must be BCH');
   bchGraduationTermsHashV2(graduationTerms);
@@ -30,6 +30,10 @@ export function bchGraduationCurveFromManifestV1(m: LaunchManifestV1, marketTerm
       graduationTerms.collectorScripts[1] !== market.partnerCollector.lockingBytecode ||
       graduationTerms.collectorScripts[2] !== market.protocolCollector.lockingBytecode)
     fail('collector destinations differ from committed fee market');
+  const creatorBin = bchOwnedFeeBinFromMarketV1(m, marketTerms, graduationTerms.creatorPositionCategory,
+    market, ownedBinArtifact, provider);
+  if (creatorBin.lockingBytecode !== graduationTerms.creatorBinScript)
+    fail('creator destination is not the committed owned fee market');
   const archive = new Contract(archiveArtifact, [], { provider, contractType: 'p2sh32' });
   if (archive.bytecode !== '00' || archive.lockingBytecode !== graduationTerms.stateArchiveScript)
     fail('state archive is not the permanent OP_0 covenant');
@@ -57,5 +61,5 @@ export function bchGraduationCurveFromManifestV1(m: LaunchManifestV1, marketTerm
   if (hashScript(curve.lockingBytecode) !== m.curveScriptHash ||
       curve.lockingBytecode !== allocation.lockingBytecode)
     fail('curve script differs from manifest allocation');
-  return { curve, market, archive };
+  return { curve, market, creatorBin, archive };
 }
