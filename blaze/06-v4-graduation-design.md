@@ -10,6 +10,8 @@ The first handoff should require all three curve fee balances to be claimed befo
 
 The V2 prototype checks terminal state, exact threshold, zero unclaimed fees, exact launch FT conservation, both BCH and FT lock percentages, destination script hashes, NFT commitment preservation, fixed curve carrier, sponsor change and a 5,000-sat fee cap. It has a two-bin path for 90–99.99% locked and a one-bin path for 100% locked. The lock comparison uses quotient and remainder to avoid an intermediate signed-VM multiplication overflow. The current VM fixture sends the state NFT to a spendable placeholder script, so **the prototype does not provide permanent NFT archival**. It also points to current V4 bins that have no three-recipient market fee ledger. These are explicit release blockers.
 
+The [market fee plan](07-fee-economics-and-market-contract.md) resolves the economic boundary: existing V4 spread and fee variants do not pay the launch's creator/partner/protocol shares. The production graduation destination must be a new fee-bearing market family with an LP-compounding share and claimable recipient shares; the graduation script must pin that family's exact artifacts and terms.
+
 For remaining base amount `B` and real quote `Q`, committed lock setting `L` basis points (at least 9,000) requires `lockedBase >= ceil(B*L/10000)` and `lockedQuote >= ceil(Q*L/10000)`. The creator portion is at most the remainder of **each** asset, separately. Both destination scripts, bin prices, carriers, output order, position ownership and NFT disposition must be enforced by the graduation covenant, not merely checked by a wallet builder. A sponsor may pay fees and supply extra BCH, but cannot redirect either asset.
 
 ## Why current artifacts cannot safely implement this yet

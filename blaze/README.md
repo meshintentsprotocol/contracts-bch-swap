@@ -9,6 +9,8 @@ Read in order:
 3. [Chipnet end-to-end test plan and current result](03-chipnet-e2e.md)
 4. [Proposed repository and contract tree](04-repository-tree.md)
 5. [Delivery phases and current status](05-phase-tracker.md)
+6. [V4 graduation contract boundary](06-v4-graduation-design.md)
+7. [Fee economics and market contract gate](07-fee-economics-and-market-contract.md)
 
 ## Contract boundary
 
