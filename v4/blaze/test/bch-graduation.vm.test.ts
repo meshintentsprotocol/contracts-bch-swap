@@ -120,29 +120,42 @@ function reachableLifecycle() {
   assert.equal(verify(sold), true);
   curveInput = utxo(c.lockingBytecode, sellPlan.outputs[0].satoshis,
     sellPlan.outputs[0].token, 0, sold.txid);
-  const buyPlan = planBchCurveBuyV1(m, curveInput, utxo(TAKER.lock, 900_000n), 800_000n, 4_000n, 1n);
+  const consolidate = tb();
+  consolidate.addInput(utxo(TAKER.lock, openingPlan.outputs[2].satoshis, undefined,
+    2, opening.txid), TAKER.template.unlockP2PKH());
+  consolidate.addInput(utxo(TAKER.lock, sellPlan.outputs[1].satoshis, undefined,
+    1, sold.txid), TAKER.template.unlockP2PKH());
+  const consolidatedSats = openingPlan.outputs[2].satoshis + sellPlan.outputs[1].satoshis - 1_000n;
+  consolidate.addOutput({ to: TAKER.lock, amount: consolidatedSats });
+  const consolidated = buildTx(consolidate);
+  assert.equal(verify(consolidated), true);
+  const wallet = utxo(TAKER.lock, consolidatedSats, undefined, 0,
+    hashTransaction(encodeTransaction(consolidated.transaction)));
+  const buyPlan = planBchCurveBuyV1(m, curveInput, wallet, 800_000n, 4_000n, 1n);
   const bought = buildSignedBchCurveAction(net, m, buyPlan, c, TAKER.template, 'buy');
   assert.equal(verify(bought), true);
   assert.equal(buyPlan.quote.complete, true);
   curveInput = utxo(c.lockingBytecode, buyPlan.outputs[0].satoshis,
     buyPlan.outputs[0].token, 0, bought.txid);
-  for (const [role, recipient, signer] of [[0, OWNER, OWNER], [1, TAKER, OWNER],
-    [2, KEEPER, OWNER]] as const) {
-    const claimPlan = planBchCurveClaimV1(m, curveInput, utxo(signer.lock, 10_000n),
+  let sponsor = utxo(TAKER.lock, buyPlan.outputs[2].satoshis, undefined, 2, bought.txid);
+  for (const [role, recipient] of [[0, OWNER], [1, TAKER],
+    [2, KEEPER]] as const) {
+    const claimPlan = planBchCurveClaimV1(m, curveInput, sponsor,
       role, binToHex(recipient.lock), 4_000n);
-    const claimed = buildSignedBchCurveAction(net, m, claimPlan, c, signer.template, 'claim');
+    const claimed = buildSignedBchCurveAction(net, m, claimPlan, c, TAKER.template, 'claim');
     assert.equal(verify(claimed), true);
     curveInput = utxo(c.lockingBytecode, claimPlan.outputs[0].satoshis,
       claimPlan.outputs[0].token, 0, claimed.txid);
+    sponsor = utxo(TAKER.lock, claimPlan.outputs[2].satoshis, undefined, 2, claimed.txid);
   }
   const terms: BchGraduationTermsV2 = { lockedBinScript: marketLocked.lockingBytecode,
     creatorBinScript: marketOwned.lockingBytecode, stateArchiveScript: archive.lockingBytecode,
     lockedPositionCategory: TOKEN_B, creatorPositionCategory: '11'.repeat(32), lockedBps: 9_000,
     collectorScripts: collectors.map((collector) => collector.lockingBytecode) as [string, string, string],
     collectorCarrierSats: 1_000n };
-  const handoff = planBchGraduationV2(m, curveInput, utxo(OWNER.lock, 10_000n),
+  const handoff = planBchGraduationV2(m, curveInput, sponsor,
     terms, bchGraduationTermsHashV2(terms), 4_000n);
-  const graduated = buildSignedBchGraduationV2(net, m, handoff, c, OWNER.template);
+  const graduated = buildSignedBchGraduationV2(net, m, handoff, c, TAKER.template);
   assert.equal(verify(graduated), true);
   assert.equal(handoff.split.lockedQuote, 450_003n);
   const marketTrade = tb();
@@ -153,7 +166,8 @@ function reachableLifecycle() {
     marketTrade.addInput(utxo(collector.lockingBytecode, 1_000n, undefined, i + 3,
       graduated.txid), collector.unlock.accrue());
   }
-  marketTrade.addInput(utxo(TAKER.lock, 50_000n), TAKER.template.unlockP2PKH());
+  const marketBuyer = utxo(TAKER.lock, handoff.outputs[6]!.satoshis, undefined, 6, graduated.txid);
+  marketTrade.addInput(marketBuyer, TAKER.template.unlockP2PKH());
   marketTrade.addOutput({ to: lockOf(marketLocked), amount: handoff.outputs[0]!.satoshis + 21_050n,
     token: { category: TOKEN_A, amount: handoff.outputs[0]!.token!.amount - 10_000n } });
   marketTrade.addOutput({ to: lockOf(collectors[0]!), amount: 1_005n });
@@ -161,9 +175,11 @@ function reachableLifecycle() {
   marketTrade.addOutput({ to: lockOf(collectors[2]!), amount: 1_007n });
   marketTrade.addOutput({ to: TAKER.lock, amount: 1_000n,
     token: { category: TOKEN_A, amount: 10_000n } });
-  marketTrade.addOutput({ to: TAKER.lock, amount: 23_937n });
+  marketTrade.addOutput({ to: TAKER.lock, amount: marketBuyer.satoshis - 26_063n });
   const marketBuilt = buildTx(marketTrade);
   assert.equal(verify(marketBuilt), true);
+  let claimSponsor = utxo(TAKER.lock, marketBuyer.satoshis - 26_063n, undefined, 5,
+    hashTransaction(encodeTransaction(marketBuilt.transaction)));
   for (let i = 0; i < collectors.length; i++) {
     const collector = collectors[i]!;
     const recipient = [OWNER, TAKER, KEEPER][i]!;
@@ -173,13 +189,18 @@ function reachableLifecycle() {
     claim.addInput(utxo(collector.lockingBytecode, 1_000n + accrued, undefined,
       i + 1, hashTransaction(encodeTransaction(marketBuilt.transaction))),
       collector.unlock.claim());
-    claim.addInput(utxo(OWNER.lock, 10_000n), OWNER.template.unlockP2PKH());
+    claim.addInput(claimSponsor, TAKER.template.unlockP2PKH());
     claim.addOutput({ to: lockOf(collector), amount: 1_000n });
     claim.addOutput({ to: recipient.lock, amount: 546n });
-    claim.addOutput({ to: OWNER.lock, amount: 10_000n - topUp - 4_000n });
-    assert.equal(verify(buildTx(claim)), true);
+    const change = claimSponsor.satoshis - topUp - 4_000n;
+    claim.addOutput({ to: TAKER.lock, amount: change });
+    const claimed = buildTx(claim);
+    assert.equal(verify(claimed), true);
+    claimSponsor = utxo(TAKER.lock, change, undefined, 2,
+      hashTransaction(encodeTransaction(claimed.transaction)));
   }
-  console.log(`reachable E1 partial chain: opening ${opening.size} B, sell ${sold.size} B, terminal buy ${bought.size} B, graduation ${graduated.size} B, market buy ${marketBuilt.size} B`);
+  assert.ok(claimSponsor.satoshis >= 546n);
+  console.log(`reachable E1 local chain: opening ${opening.size} B, sell ${sold.size} B, terminal buy ${bought.size} B, graduation ${graduated.size} B, market buy ${marketBuilt.size} B, final wallet ${claimSponsor.satoshis} sats`);
 }
 
 function spend(tamper: 'none' | 'lockedScript' | 'creatorScript' | 'base' | 'quote' | 'archive' | 'collector' | 'sponsor' | 'fees' | 'stage' = 'none', feeMarket = false, bid = 7n, ask = 8n) {
