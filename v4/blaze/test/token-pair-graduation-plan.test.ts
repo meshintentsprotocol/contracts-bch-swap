@@ -14,6 +14,7 @@ const zero = '00'.repeat(32);
 const completed = { stage: 1 as const, realQuote: 500_003n,
   creatorFees: 0n, partnerFees: 0n, protocolFees: 0n };
 const terms: TokenPairGraduationTermsV1 = {
+  creatorPositionCategory: '11'.repeat(32),
   lockedBaseScript: sponsorScript, lockedQuoteScript: sponsorScript,
   creatorBaseScript: baseScript, creatorQuoteScript: baseScript,
   archiveScript: quoteScript, collectorScripts: [baseScript, quoteScript, sponsorScript],

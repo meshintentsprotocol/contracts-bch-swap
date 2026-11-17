@@ -8,6 +8,10 @@ import { encodeCurveStateV1, type CurveStateV1 } from '../src/curve/state.js';
 import { quoteBuy, quoteSell } from '../src/math/curve.js';
 import { tokenPairGraduationTermsHashV1, planTokenPairGraduationV1,
   type TokenPairGraduationTermsV1 } from '../src/graduation/token-pair-handoff.js';
+import { tokenPairV2FromManifest } from '../src/graduation/token-pair-v2.js';
+import { verifyTokenPairLaunchBundleV1 } from '../src/graduation/token-pair-launch-bundle.js';
+import { planSeed } from '../src/genesis/plan.js';
+import { planCreatorPositionGenesis } from '../src/graduation/position-genesis.js';
 import type { LaunchManifestV1 } from '../src/manifest/v1.js';
 
 const BASE = JSON.parse(readFileSync('blaze/artifacts/MeshBlazeTokenBaseVaultV2Prototype.json', 'utf8'));
@@ -24,6 +28,12 @@ const terminal = { stage: 1 as const, realQuote: 500_003n,
   creatorFees: 0n, partnerFees: 0n, protocolFees: 0n };
 const rights = { creator: { scriptHash: h(OWNER.lock), bps: 50 },
   partner: { scriptHash: h(TAKER.lock), bps: 25 }, protocol: { scriptHash: h(KEEPER.lock), bps: 25 } };
+const marketRights = { creator: { scriptHash: h(OWNER.lock), bps: 800 },
+  partner: { scriptHash: h(TAKER.lock), bps: 200 }, protocol: { scriptHash: h(KEEPER.lock), bps: 1_000 } };
+const positionSeed = planSeed(net, utxo(OWNER.lock, 100_000n), OWNER.template, 600n);
+const positionCommitment = '01' + 'ab'.repeat(32);
+const positionGenesis = planCreatorPositionGenesis(net, positionSeed, OWNER.template,
+  binToHex(OWNER.lock), positionCommitment, 900n, binToHex(OWNER.lock));
 function fixture(lockedBps: 9_000 | 10_000, marketBid = 7n, marketAsk = 8n) {
   const collectors = [OWNER, TAKER, KEEPER].map((key) => new Contract(COLLECTOR,
     [`0x${catVm(TOKEN_B)}`, `0x${h(key.lock)}`, `0x${le(1_000n, 8)}`],
@@ -38,7 +48,7 @@ function fixture(lockedBps: 9_000 | 10_000, marketBid = 7n, marketAsk = 8n) {
   const lockedBase = new Contract(MARKET_BASE_LOCKED, [marketArgs[0]!, marketArgs[1]!,
     `0x${binToHex(hash256(hexToBin(lockedQuote.bytecode)))}`, ...marketArgs.slice(2)],
     { provider: net, contractType: 'p2sh32' });
-  const ownerCat = '11'.repeat(32);
+  const ownerCat = positionSeed.category;
   const ownedQuote = new Contract(MARKET_QUOTE_OWNED,
     [marketArgs[0]!, marketArgs[1]!, `0x${catVm(ownerCat)}`, ...marketArgs.slice(2)],
     { provider: net, contractType: 'p2sh32' });
@@ -47,6 +57,7 @@ function fixture(lockedBps: 9_000 | 10_000, marketBid = 7n, marketAsk = 8n) {
       `0x${binToHex(hash256(hexToBin(ownedQuote.bytecode)))}`, ...marketArgs.slice(2)],
     { provider: net, contractType: 'p2sh32' });
   const terms: TokenPairGraduationTermsV1 = {
+    creatorPositionCategory: ownerCat,
     lockedBaseScript: lockedBase.lockingBytecode, lockedQuoteScript: lockedQuote.lockingBytecode,
     creatorBaseScript: ownedBase.lockingBytecode, creatorQuoteScript: ownedQuote.lockingBytecode,
     archiveScript: archive.lockingBytecode,
@@ -80,9 +91,30 @@ function fixture(lockedBps: 9_000 | 10_000, marketBid = 7n, marketAsk = 8n) {
     presaleScriptHash: zero, alphaModes: 0, alphaFixedScriptHash: zero, alphaBuyScriptHash: zero,
     virtualBase: 100_000n, virtualQuote: 1_000_000n, graduationQuoteThreshold: 500_003n,
     lockedLiquidityBps: lockedBps, curveScriptHash: h(lockOf(b)), quoteVaultScriptHash: h(lockOf(q)),
-    quoteVaultCarrierSats: 1_000n, graduationScriptHash: h(OWNER.lock),
-    marketScriptHash: h(lockOf(lockedBase)), curveFees: rights, marketFees: rights,
+    quoteVaultCarrierSats: 1_000n, graduationScriptHash: h(lockOf(b)),
+    marketScriptHash: h(lockOf(lockedBase)), curveFees: rights, marketFees: marketRights,
   };
+  const artifacts = { curveBase: BASE, curveQuote: QUOTE,
+    marketBaseLocked: MARKET_BASE_LOCKED, marketQuoteLocked: MARKET_QUOTE_LOCKED,
+    marketBaseOwned: MARKET_BASE_OWNED, marketQuoteOwned: MARKET_QUOTE_OWNED,
+    collector: COLLECTOR, archive: ARCHIVE };
+  const market = { bidNum: marketBid, bidDen: 1n, askNum: marketAsk, askDen: 1n,
+    tradingFeeBps: 30, marketCarrierSats: 1_000n, collectorCarrierSats: 1_000n };
+  const reconstructed = tokenPairV2FromManifest(m, market, terms, artifacts, net);
+  assert.equal(reconstructed.curveBase.lockingBytecode, b.lockingBytecode);
+  assert.equal(reconstructed.curveQuote.lockingBytecode, q.lockingBytecode);
+  assert.equal(reconstructed.lockedBase.lockingBytecode, lockedBase.lockingBytecode);
+  assert.throws(() => tokenPairV2FromManifest({ ...m, marketScriptHash: h(OWNER.lock) },
+    market, terms, artifacts, net), /market script/);
+  assert.throws(() => tokenPairV2FromManifest(m, market,
+    { ...terms, collectorScripts: [binToHex(OWNER.lock), ...terms.collectorScripts.slice(1)] as [string, string, string] },
+    artifacts, net), /destination/);
+  const bundleHash = verifyTokenPairLaunchBundleV1(m, market, terms, positionGenesis.transaction,
+    positionGenesis.sourceOutputs, binToHex(OWNER.lock), positionCommitment, artifacts, net);
+  assert.match(bundleHash, /^[0-9a-f]{64}$/);
+  assert.throws(() => verifyTokenPairLaunchBundleV1(m, market, terms, positionGenesis.transaction,
+    positionGenesis.sourceOutputs, binToHex(OWNER.lock), '01' + 'cd'.repeat(32), artifacts, net),
+  /non-minting position NFT/);
   const base = utxo(b.lockingBytecode, 1_000n,
     nft(TOKEN_A, 'mutable', encodeCurveStateV1(terminal), 100_001n));
   const quote = utxo(q.lockingBytecode, 1_000n, { category: TOKEN_B, amount: 500_003n });
@@ -205,4 +237,4 @@ rejectsBoth((outputs) => { outputs[1]!.token!.amount -= 1n; });
 rejectsBoth((outputs) => { outputs[1]!.lockingBytecode = binToHex(OWNER.lock); });
 rejectsBoth((outputs) => { outputs[8]!.satoshis -= 5_001n; });
 rejectsBoth((outputs) => { outputs[4]!.token!.nft!.commitment = '00'; });
-console.log('Mesh Blaze paired graduation VM: 14 checks passed, including V2 trades and linked market claims');
+console.log('Mesh Blaze paired graduation VM: 14 lifecycle checks plus artifact reconstruction');

@@ -26,6 +26,9 @@ export function verifyBchLaunchGenesisCommitmentV1(genesis: Transaction, bundleH
   if (matches.length !== 1) throw new Error('Mesh Blaze launch bundle: genesis lacks exact MBND commitment');
 }
 
+/** The exact MBND publication check is shared by BCH and CashToken quote launches. */
+export const verifyLaunchGenesisBundleCommitmentV1 = verifyBchLaunchGenesisCommitmentV1;
+
 /** Read-only verification before a launch bundle hash is published or shown in a UI. */
 export function verifyBchLaunchBundleV1(m: LaunchManifestV1, market: BchMarketTermsV1,
   graduation: BchGraduationTermsV2, positionGenesis: Transaction,

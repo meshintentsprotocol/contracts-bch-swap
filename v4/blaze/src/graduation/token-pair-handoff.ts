@@ -8,6 +8,7 @@ import { graduationSplitV1, type GraduationSplitV1 } from './split.js';
 
 /** Unsigned E2 output plan. V2 covenants must independently enforce this layout. */
 export interface TokenPairGraduationTermsV1 {
+  creatorPositionCategory: string;
   lockedBaseScript: string;
   lockedQuoteScript: string;
   creatorBaseScript: string;
@@ -39,6 +40,8 @@ function u64(value: bigint): number[] {
   return Array.from({ length: 8 }, (_, i) => Number((value >> BigInt(8 * i)) & 255n));
 }
 export function tokenPairGraduationTermsHashV1(t: TokenPairGraduationTermsV1): string {
+  if (!/^[0-9a-f]{64}$/.test(t.creatorPositionCategory) || /^0+$/.test(t.creatorPositionCategory))
+    fail('creator position category must be nonzero lowercase 32-byte hex');
   if (!Number.isInteger(t.lockedBps) || t.lockedBps < 9_000 || t.lockedBps > 10_000)
     fail('lock share outside 9000..10000 bps');
   if (t.marketCarrierSats < 1_000n || t.collectorCarrierSats < 1_000n)
@@ -47,7 +50,7 @@ export function tokenPairGraduationTermsHashV1(t: TokenPairGraduationTermsV1): s
   const scripts = [t.lockedBaseScript, t.lockedQuoteScript, t.creatorBaseScript,
     t.creatorQuoteScript, t.archiveScript, ...t.collectorScripts].map(script);
   const bytes: number[] = [1, t.lockedBps & 255, t.lockedBps >> 8,
-    ...u64(t.marketCarrierSats), ...u64(t.collectorCarrierSats)];
+    ...hexToBin(t.creatorPositionCategory), ...u64(t.marketCarrierSats), ...u64(t.collectorCarrierSats)];
   for (const part of scripts) bytes.push(part.length & 255, part.length >> 8, ...part);
   return binToHex(sha256.hash(Uint8Array.from(bytes)));
 }
@@ -55,6 +58,8 @@ function expected(m: LaunchManifestV1, base: SpendableUtxo, quote: SpendableUtxo
   sponsor: SpendableUtxo, terms: TokenPairGraduationTermsV1,
   expectedHash: string, networkFee: bigint) {
   if (m.quoteCategory === null) fail('CashToken quote required');
+  if (terms.creatorPositionCategory === m.tokenCategory || terms.creatorPositionCategory === m.quoteCategory)
+    fail('creator position category must differ from launch and quote');
   const quoteCategory = m.quoteCategory as string;
   if (tokenPairGraduationTermsHashV1(terms) !== expectedHash) fail('graduation terms hash differs');
   if (terms.lockedBps !== m.lockedLiquidityBps) fail('lock share differs from manifest');
