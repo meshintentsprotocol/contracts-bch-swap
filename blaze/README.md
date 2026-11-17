@@ -1,6 +1,6 @@
 # Mesh Blaze contract implementation plan
 
-Status: design and baseline verification, 2026-11-17. Work branch: `bchblaze`. This directory is the contract-repo execution plan; product decisions live in `devrel-agent-context/blaze-dbc`. No Blaze covenant is implemented or deployed by this plan.
+Status: implementation started, 2026-11-17. Work branch: `bchblaze`. This directory is the contract-repo execution plan; executable code begins in `v4/blaze/`. Product decisions live in `devrel-agent-context/blaze-dbc`. No Blaze covenant is deployed.
 
 Read in order:
 
@@ -8,6 +8,7 @@ Read in order:
 2. [Contract sequence and meaningful commits](02-implementation-and-commits.md)
 3. [Chipnet end-to-end test plan and current result](03-chipnet-e2e.md)
 4. [Proposed repository and contract tree](04-repository-tree.md)
+5. [Delivery phases and current status](05-phase-tracker.md)
 
 ## Contract boundary
 

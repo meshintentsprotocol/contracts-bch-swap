@@ -1,6 +1,6 @@
 # Launch token genesis and curve funding
 
-Status: design, 2026-11-17. This answers how Mesh creates a fixed-supply CashToken and funds a DBC curve on the UTXO ledger. It is a transaction plan, not an implemented builder.
+Status: offline seed/genesis builder implemented and BCH VM tested, 2026-11-17; funded chipnet genesis and launch funding remain open. This explains how Mesh creates a fixed-supply CashToken and funds a DBC curve on the UTXO ledger.
 
 ## CashToken category and supply
 
@@ -8,7 +8,7 @@ CashToken genesis requires input 0 to spend output 0 of an existing funding tran
 
 1. **Seed transaction:** spend creator BCH, make a spendable output 0 reserved for genesis, and fund transaction fees/carrier sats. Persist unsigned and signed plans, txid, network and expiry. Avoid relying on an arbitrary wallet coin-selection result once the category is previewed.
 2. **Genesis transaction:** spend the seed output as input 0; create the full committed fungible supply across curve inventory, presale allocation, Alpha fixed allocation, team/community vesting, creator allocation and explicit leftovers. Each token-bearing output needs BCH carrier sats. Publish a BCMR registry commitment and category metadata in a verifiable authchain. Reserve an identity output if updates to metadata are allowed; metadata authority must be disclosed separately from mint authority.
-3. **Fixed-supply verified template:** do not create or retain a minting-capability NFT. The verifier must inspect the genesis and later history before labeling supply fixed; a UI checkbox or absent NFT in the curve output is insufficient. If a user imports an existing category with unknown issuance history, launch can remain open but cannot receive the fixed-supply badge without chain proof.
+3. **Fixed-supply verified template:** do not create or retain a minting-capability NFT. A **mutable state NFT of the same launch-token category** may accompany the curve's fungible inventory to carry fee/reserve counters; it cannot mint new FT. The verifier must inspect the genesis and later history before labeling supply fixed; a UI checkbox or absent NFT in the curve output is insufficient. If a user imports an existing category with unknown issuance history, launch can remain open but cannot receive the fixed-supply badge without chain proof.
 4. **Launch manifest:** commit category, total supply, all allocations, quote category or BCH marker, curve parameters, fee recipients/rates, activation and Alpha windows, graduation scripts, 90% lock floor, creator position share, vesting and sale routes. Hash the canonical binary manifest and pin its bytes/version in every launch covenant constructor or state. BCMR is display metadata, not the covenant's sole source of economic truth.
 
 ## Funding sequence and atomicity choices

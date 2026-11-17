@@ -1,0 +1,35 @@
+# Mesh Blaze delivery phases
+
+Updated 2026-11-17. Goal: implement the Mesh Blaze launch stack on `bchblaze` and verify complete chipnet lifecycles. `Done` means evidence exists in this repo; `in progress` means code or review is incomplete. This tracker is not a deployment claim.
+
+| Phase | Status | Work and exit evidence |
+|---|---|---|
+| 0. Architecture and repo baseline | **Done** | Contract tree, transaction/lifecycle plan, commit map; V4 VM baseline 350/350; existing chipnet position metadata inspected. See [run log](03-chipnet-e2e.md). |
+| 1. Fixed-supply token genesis | **In progress** | Offline seed/genesis builder, exact-byte BCMR helper, hosted-byte verifier and draft binary manifest exist. Genesis checks 15/15, manifest checks 14/14 and metadata checks 4/4 pass; same-category mutable state NFT plus FT is BCH-VM valid, minting authority is forbidden, and BCH curve manifests reject unsafe VM arithmetic bounds. Still needed: ABI freeze, full dust/relay checks, chipnet FT genesis, wallet integration. |
+| 2. BCH quote DBC | **In progress** | Reference [integer curve/state model](../v4/blaze/docs/curve-v1.md), 8 math checks, a compiled buy/sell/fee-claim [covenant prototype](../v4/blaze/contracts/curve/MeshBlazeBchCurveV1.cash) with 23 VM checks, manifest-derived buy/sell/claim plans and arithmetic bounds with 16 checks, and local size/op-cost samples. Still needed: graduation, wallet signing, worst-case/policy testing and chipnet buy/sell/claim. |
+| 3. CashToken quote DBC | **In progress** | Manifest commits [quote-vault identity and carrier](../v4/blaze/docs/token-quote-v1.md) and bounds arithmetic for either quote type. Compiled paired base/quote buy, sell and whole-balance fee-claim covenants and unsigned plans have 25 atomic checks, including terminal partial fill/refund and adversarial outputs; 5 isolated quote-vault checks also pass. Still needed: graduation, wallet signing and chipnet buy/sell/claim. |
+| 4. Final fill and completion | **Not started** | Used-quote calculation, partial fill, excess refund, exact threshold, terminal state, liveness. Exit: both quote types reach completion on chipnet with no post-completion trade. |
+| 5. Graduated markets and locks | **Design in progress** | [V4 handoff boundary](06-v4-graduation-design.md) identifies locked and creator-owned bins, required fee-bearing variants and separate token/token market. No market covenant or three-way market fee ledger is implemented. Exit: post-grad swaps and claims, lock-path attack tests. |
+| 6. Graduation | **Design in progress** | Exact two-asset 90% rounding helper and 8 assertions pass; [handoff design](06-v4-graduation-design.md) lists missing manifest terms and covenant proofs. No graduation spend path exists. Exit: chipnet curve-to-market lifecycle for both quotes. |
+| 7. Presale and Alpha | **Not started** | Standalone Presale success/failure/refund plus optional route fixed before deposits; Alpha fixed allocation and bounded pre-public pool buying, claims/refunds/expiry. Exit: four separate chipnet lifecycles and adversarial receipts. |
+| 8. Integration and release gate | **Not started** | SDK, indexer fixtures, creator/public UI wiring, reorg handling, artifact registry, reproducible builds, external audit, operator runbook. Exit: independently reproducible chain evidence and reviewed deployment artifacts. |
+
+## Work sequence and exit gates
+
+These phases are capability groups. The token-quote design must inform the common manifest and graduation interface while the BCH curve is built. Each gate needs passing VM tests and a transaction builder that independently checks covenant outputs.
+
+1. **Genesis and launch manifest:** freeze the binary manifest and state commitment; enforce carrier, dust, fee-rate, allocation, NFT capability and hosted BCMR checks in the offline builder. Add a read-only chipnet verifier, then create one fresh chipnet fixed-supply FT and record txids. The current 15 genesis, 14 manifest and 4 metadata checks are local evidence only.
+2. **BCH curve safety:** creator, partner and protocol whole-balance claims and terminal partial-fill/refund layout are compiled and VM tested. The constructor derives fee-recipient hashes from the manifest, and unsigned buy/sell/claim plans exist. Wire wallet signing and broadcast; test hostile output ordering, categories, reserve and fee arithmetic, and completed-state rejection. Measure worst-case VM cost and policy relay acceptance.
+3. **CashToken quote curve:** implement paired base and quote state UTXOs with one atomic spend, exact category conservation, independent BCH carriers and common fee accounting. Add builders and VM tests for missing or substituted vault inputs. Complete a chipnet token-quote trade cycle.
+4. **Completion and market handoff:** use a permissionless terminal state for each quote type. Prove exact remaining fill, explicit refund, fee extraction, destination funding and price/depth bounds. Test both graduation paths and execute both on chipnet.
+5. **Permanent liquidity and fees:** implement fee-bearing markets and an irrevocable lock for at least 90% of graduation liquidity. Keep a separately disclosed creator-owned share of at most 10%. Continue creator, partner and protocol fee rights after graduation. Test withdrawals, claims, direct token/token swaps and locked-principal attacks.
+6. **Presale and Alpha:** implement Presale success, failure and refunds with its destination fixed before deposits. Implement fixed Alpha allocations and a bounded pre-public purchase mode; settle before public trading and disclose quantities. Exercise claims, expiry and adversarial receipts on chipnet.
+7. **Products and release:** provide an SDK, launch creation and trading UI, indexer/reorg handling, artifact registry, operator runbook and external review. Release after the complete lifecycle is independently reproducible from txids and artifact hashes.
+
+## Next implementation slice
+
+The manifest-derived BCH constructor and signing-independent buy, sell and fee-claim plans now exist. Local sample transaction sizes and VM operation costs are recorded. The paired token-quote buy, sell and claim paths spend both covenants atomically in the BCH VM and have manifest-derived unsigned plans. Graduation now has a [contract boundary and two-asset split helper](06-v4-graduation-design.md). The next contract slice is the **versioned terms commitment and fee-bearing BCH/token V4 market variant**, followed by an enforceable graduation path. BCH and token-quote paths still need relay-policy and worst-case cost measurement, wallet signing and funded chipnet trades.
+
+## Commit discipline
+
+One meaningful contract/builder boundary per commit, with source, vectors, tests and short evidence in the same diff. Avoid mixing V4 frozen contract edits with Blaze work. A commit is ready only after its local gate passes; chipnet txids are added in a follow-up evidence commit. The pending Phase 1 files are currently uncommitted because Git's index lock was denied by sandbox permissions; the source and tests remain in the worktree.

@@ -19,7 +19,7 @@ Status: planning, 2026-11-17. All commits below belong on `bchblaze`, with small
 
 ## Package layout proposal
 
-Create `blaze/contracts`, `blaze/test`, `blaze/tools`, `blaze/artifacts` and `blaze/docs` once code begins. Reuse V4's CashScript 0.14 harness where compatible, but keep Blaze outputs versioned and isolated. Define common binary config and reference math in a small library; the BCH and token-pair contracts should share economic vectors without assuming identical transaction layouts.
+Create executable code under `v4/blaze/{src,contracts,test,tools,artifacts,docs}` while keeping root `blaze/` for plans and run reports. This uses V4's pinned CashScript 0.14 toolchain without changing frozen V4 contracts. Define common binary config and reference math in a small library; the BCH and token-pair contracts should share economic vectors without assuming identical transaction layouts. See [the tree](04-repository-tree.md).
 
 ## Hard gates before a public release
 
