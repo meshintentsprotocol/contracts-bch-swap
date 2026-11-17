@@ -1,6 +1,6 @@
 # Mesh Blaze CashToken-quote graduation boundary
 
-Status: implementation contract for E2, 2026-11-17. This document specifies the next covenant and builder boundary. No paired graduation or token/token market is compiled or chipnet-proved yet. The [BCH E1 evidence](../../../blaze/08-chipnet-e1-evidence.md) does not prove this path.
+Status: E2 boundary and unsigned output planner, 2026-11-17. `src/graduation/token-pair-handoff.ts` computes and independently verifies the 90% and 100% layouts; 19 focused assertions pass. No paired graduation covenant or token/token market is compiled or chipnet-proved yet. The [BCH E1 evidence](../../../blaze/08-chipnet-e1-evidence.md) does not prove this path.
 
 ## Asset model
 
@@ -24,9 +24,9 @@ Input 0 is the completed base vault; input 1 is its exact paired quote vault; in
 | 7 | protocol collector + new carrier | — |
 | 8 | sponsor BCH change | — |
 
-The quote-vault carrier must return to the sponsor or be explicitly assigned to a disclosed successor output; it cannot disappear into an unaccounted network fee. Choose one fixed layout before coding and include it in the graduation terms hash. A separate sponsor-change output is preferable to silently merging the quote carrier into a market reserve. Outputs with token FT need enough BCH for relay. Market collector state must be denominated in the **quote CashToken**, with a token-aware claim path; the BCH fee collector used by E1 cannot collect these fees.
+The quote-vault carrier returns in the sponsor-change output, after exact new-output carriers and a capped network fee. It cannot disappear into an unaccounted fee or market reserve. Outputs with token FT need enough BCH for relay. Market collector state must be denominated in the **quote CashToken**, with a token-aware claim path; the BCH fee collector used by E1 cannot collect these fees.
 
-Both vault contracts must require: the exact input token categories; one and only one state NFT preserved in the archive output; exact base and quote FT sums; exact carrier satoshis; output script hashes bound to immutable launch/graduation terms; no unaccounted token output; a bounded network fee funded by the sponsor; and no post-completion trade path. The quote vault must independently check that input 0 is the committed base script and that its completed NFT state matches input 1's quote amount. The base vault must check that input 1 is the committed quote-vault script. Hashes alone must be backed by actual output checks in the covenants.
+Both vault contracts must require: the exact input token categories; one and only one state NFT preserved in the archive output; exact base and quote FT sums; exact carrier satoshis; output script hashes bound to immutable launch/graduation terms; no unaccounted token output; a bounded network fee funded by the sponsor; and no post-completion trade path. The base vault pins input 1 to the quote-vault redeem-script hash. The quote vault independently checks the completed state NFT, its quote ledger, output categories, amounts and destinations. It cannot also pin the base script hash: both constructors would then depend on each other's final hash. This one-way binding requires the **base covenant** to check the full output layout, while the quote covenant enforces its own reserve conservation and shared state checks. Hashes alone must be backed by actual output checks in the covenants.
 
 ## Destination contract family
 
