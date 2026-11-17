@@ -15,15 +15,15 @@ export interface BchLaunchBundleArtifactsV1 {
   archive: Artifact;
 }
 
-/** The token genesis must publish the verified bundle hash in exactly one MBLZ OP_RETURN. */
+/** The token genesis must publish the verified bundle hash in exactly one MBND OP_RETURN. */
 export function verifyBchLaunchGenesisCommitmentV1(genesis: Transaction, bundleHash: string): void {
   if (!/^[0-9a-f]{64}$/.test(bundleHash)) throw new Error('Mesh Blaze launch bundle: invalid bundle hash');
-  const expected = `6a044d424c5a20${bundleHash}`;
-  if (genesis.outputs.filter((out) => binToHex(out.lockingBytecode).startsWith('6a044d424c5a')).length > 1)
-    throw new Error('Mesh Blaze launch bundle: duplicate MBLZ commitment');
+  const expected = `6a044d424e4420${bundleHash}`;
+  if (genesis.outputs.filter((out) => binToHex(out.lockingBytecode).startsWith('6a044d424e44')).length > 1)
+    throw new Error('Mesh Blaze launch bundle: duplicate MBND commitment');
   const matches = genesis.outputs.filter((out) => binToHex(out.lockingBytecode) === expected &&
     out.valueSatoshis === 0n && !out.token);
-  if (matches.length !== 1) throw new Error('Mesh Blaze launch bundle: genesis lacks exact MBLZ commitment');
+  if (matches.length !== 1) throw new Error('Mesh Blaze launch bundle: genesis lacks exact MBND commitment');
 }
 
 /** Read-only verification before a launch bundle hash is published or shown in a UI. */

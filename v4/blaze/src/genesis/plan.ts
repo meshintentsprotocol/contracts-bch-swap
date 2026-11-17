@@ -36,6 +36,7 @@ export interface GenesisPlan {
   txid: string;
   category: string;
   manifestHash?: string;
+  bundleHash?: string;
   paidFee: bigint;
   allocationIndexes: Record<string, number>;
   sourceOutputs: Output[];
@@ -90,6 +91,7 @@ export function planFixedSupplyGenesis(
   publicationChunks?: string[],
   manifestHash?: string,
   minFeeRate = 1,
+  bundleHash?: string,
 ): GenesisPlan {
   if (!Number.isInteger(minFeeRate) || minFeeRate < 1 || minFeeRate > 100) fail('minimum fee rate must be 1..100 sats/byte');
   if (!isHash(seed.category) || hashTransaction(encodeTransaction(seed.transaction)) !== seed.category) fail('seed transaction/category mismatch');
@@ -123,6 +125,10 @@ export function planFixedSupplyGenesis(
     if (!isHash(manifestHash)) fail('manifest hash must be 32-byte lowercase hex');
     b.addOpReturnOutput(['MBLZ', `0x${manifestHash}`]);
   }
+  if (bundleHash) {
+    if (!isHash(bundleHash)) fail('bundle hash must be 32-byte lowercase hex');
+    b.addOpReturnOutput(['MBND', `0x${bundleHash}`]);
+  }
   const change = seed.outputSatoshis - carrier - fee;
   if (change >= MIN_TOKEN_CARRIER) b.addOutput({ to: hexToBin(changeLockingBytecode), amount: change });
   const transaction = (b as any).buildLibauthTransaction(true) as Transaction;
@@ -131,7 +137,7 @@ export function planFixedSupplyGenesis(
   const hex = binToHex(encodeTransaction(transaction));
   const paidFee = seed.outputSatoshis - transaction.outputs.reduce((n, o) => n + o.valueSatoshis, 0n);
   if (paidFee < BigInt(hex.length / 2) * BigInt(minFeeRate)) fail('genesis fee below minimum sat/byte rate');
-  return { transaction, hex, size: hex.length / 2, txid: hashTransaction(encodeTransaction(transaction)), category: seed.category, manifestHash, paidFee, allocationIndexes, sourceOutputs };
+  return { transaction, hex, size: hex.length / 2, txid: hashTransaction(encodeTransaction(transaction)), category: seed.category, manifestHash, bundleHash, paidFee, allocationIndexes, sourceOutputs };
 }
 
 /** Rejects minting NFTs, hidden category outputs and mismatched allocation destinations. */

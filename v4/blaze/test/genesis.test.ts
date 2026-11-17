@@ -25,13 +25,15 @@ const cases: Array<[string, () => void]> = [
   ['genesis commits one exact launch bundle hash', () => {
     const { seed, allocations } = makePlans();
     const hash = 'ab'.repeat(32);
+    const manifestHash = 'cd'.repeat(32);
     const genesis = planFixedSupplyGenesis(net, seed, CREATOR.template, 1_000_000n,
-      allocations, 900n, lock(CREATOR.lock), undefined, hash);
+      allocations, 900n, lock(CREATOR.lock), undefined, manifestHash, 1, hash);
     assert.equal(verify(genesis), true);
     verifyBchLaunchGenesisCommitmentV1(genesis.transaction, hash);
-    assert.throws(() => verifyBchLaunchGenesisCommitmentV1(genesis.transaction, 'cd'.repeat(32)), /lacks exact/);
+    assert.equal(genesis.transaction.outputs.filter((o) => binToHex(o.lockingBytecode) === `6a044d424c5a20${manifestHash}`).length, 1);
+    assert.throws(() => verifyBchLaunchGenesisCommitmentV1(genesis.transaction, 'ef'.repeat(32)), /lacks exact/);
     const duplicated = structuredClone(genesis.transaction);
-    duplicated.outputs.push(structuredClone(duplicated.outputs.find((o) => binToHex(o.lockingBytecode).startsWith('6a044d424c5a'))!));
+    duplicated.outputs.push(structuredClone(duplicated.outputs.find((o) => binToHex(o.lockingBytecode).startsWith('6a044d424e44'))!));
     assert.throws(() => verifyBchLaunchGenesisCommitmentV1(duplicated, hash), /duplicate/);
   }],
   ['seed and genesis pass the BCH VM', () => {
