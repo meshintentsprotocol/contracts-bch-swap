@@ -3,6 +3,7 @@ import { binToHex } from '@bitauth/libauth';
 import { makeKey, net, utxo, verify } from '../../test/harness.js';
 import { createBcmrPublication, planSeed, planFixedSupplyGenesis, verifyFixedSupplyGenesis, MAX_FT_SUPPLY } from '../src/genesis/plan.js';
 import { encodeCurveStateV1 } from '../src/curve/state.js';
+import { verifyBchLaunchGenesisCommitmentV1 } from '../src/graduation/launch-bundle.js';
 
 const CREATOR = makeKey(0x69);
 const CURVE = makeKey(0x6a);
@@ -21,6 +22,18 @@ function makePlans() {
 }
 
 const cases: Array<[string, () => void]> = [
+  ['genesis commits one exact launch bundle hash', () => {
+    const { seed, allocations } = makePlans();
+    const hash = 'ab'.repeat(32);
+    const genesis = planFixedSupplyGenesis(net, seed, CREATOR.template, 1_000_000n,
+      allocations, 900n, lock(CREATOR.lock), undefined, hash);
+    assert.equal(verify(genesis), true);
+    verifyBchLaunchGenesisCommitmentV1(genesis.transaction, hash);
+    assert.throws(() => verifyBchLaunchGenesisCommitmentV1(genesis.transaction, 'cd'.repeat(32)), /lacks exact/);
+    const duplicated = structuredClone(genesis.transaction);
+    duplicated.outputs.push(structuredClone(duplicated.outputs.find((o) => binToHex(o.lockingBytecode).startsWith('6a044d424c5a'))!));
+    assert.throws(() => verifyBchLaunchGenesisCommitmentV1(duplicated, hash), /duplicate/);
+  }],
   ['seed and genesis pass the BCH VM', () => {
     const { seed, genesis } = makePlans();
     assert.equal(verify(seed), true);

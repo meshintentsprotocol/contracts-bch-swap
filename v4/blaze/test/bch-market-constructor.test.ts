@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { binToHex, hexToBin, sha256 } from '@bitauth/libauth';
 import { Contract } from 'cashscript';
-import { KEEPER, OWNER, TAKER, TOKEN_A, TOKEN_B, catVm, le, net } from '../../test/harness.js';
+import { KEEPER, OWNER, TAKER, TOKEN_A, TOKEN_B, catVm, le, net, utxo, verify } from '../../test/harness.js';
+import { planSeed } from '../src/genesis/plan.js';
+import { planCreatorPositionGenesis } from '../src/graduation/position-genesis.js';
+import { verifyBchLaunchBundleV1 } from '../src/graduation/launch-bundle.js';
 import { encodeCurveStateV1 } from '../src/curve/state.js';
 import { bchFeeMarketFromManifestV1, validateBchMarketArithmeticV1,
   type BchMarketTermsV1 } from '../src/market/bch-market.js';
@@ -52,8 +55,13 @@ function fixture(): LaunchManifestV1 {
   };
 }
 const m = fixture();
+const positionSeed = planSeed(net, utxo(OWNER.lock, 100_000n), OWNER.template, 600n);
+const positionCommitment = '01' + 'ab'.repeat(32);
+const position = planCreatorPositionGenesis(net, positionSeed, OWNER.template,
+  binToHex(OWNER.lock), positionCommitment, 900n, binToHex(OWNER.lock));
+assert.equal(verify(position), true);
 const built = bchFeeMarketFromManifestV1(m, terms, BIN, COLLECTOR, net);
-const owned = new Contract(OWNED, [`0x${catVm(TOKEN_A)}`, `0x${catVm('11'.repeat(32))}`,
+const owned = new Contract(OWNED, [`0x${catVm(TOKEN_A)}`, `0x${catVm(position.category)}`,
   `0x${le(7n, 8)}`, `0x${le(1n, 8)}`, `0x${le(8n, 8)}`, `0x${le(1n, 8)}`,
   ...[built.creatorCollector, built.partnerCollector, built.protocolCollector].map((c) => `0x${hash(c.lockingBytecode)}`),
   `0x${le(30n, 2)}`, `0x${le(800n, 2)}`, `0x${le(200n, 2)}`, `0x${le(1_000n, 2)}`],
@@ -77,7 +85,7 @@ assert.throws(() => validateBchMarketArithmeticV1({ ...m, quoteCategory: TOKEN_B
 const grad: BchGraduationTermsV2 = {
   lockedBinScript: built.bin.lockingBytecode, creatorBinScript: owned.lockingBytecode,
   stateArchiveScript: archive.lockingBytecode, lockedPositionCategory: TOKEN_B,
-  creatorPositionCategory: '11'.repeat(32), lockedBps: 9_000,
+  creatorPositionCategory: position.category, lockedBps: 9_000,
   collectorScripts: [built.creatorCollector.lockingBytecode, built.partnerCollector.lockingBytecode,
     built.protocolCollector.lockingBytecode], collectorCarrierSats: 1_000n,
 };
@@ -98,6 +106,16 @@ assert.equal(linked.curve.lockingBytecode, curveV2.lockingBytecode);
 assert.equal(linked.market.bin.lockingBytecode, grad.lockedBinScript);
 assert.equal(linked.creatorBin.lockingBytecode, grad.creatorBinScript);
 assert.equal(linked.archive.bytecode, '00');
+const bundleHash = verifyBchLaunchBundleV1(mV2, terms, grad, position.transaction,
+  position.sourceOutputs, binToHex(OWNER.lock), positionCommitment,
+  { curve: CURVE_V2, lockedBin: BIN, ownedBin: OWNED, collector: COLLECTOR, archive: ARCHIVE }, net);
+assert.match(bundleHash, /^[0-9a-f]{64}$/);
+assert.throws(() => verifyBchLaunchBundleV1(mV2, terms, grad, position.transaction,
+  position.sourceOutputs, binToHex(TAKER.lock), positionCommitment,
+  { curve: CURVE_V2, lockedBin: BIN, ownedBin: OWNED, collector: COLLECTOR, archive: ARCHIVE }, net), /creator must receive/);
+assert.throws(() => verifyBchLaunchBundleV1(mV2, terms, { ...grad, creatorPositionCategory: TOKEN_B },
+  position.transaction, position.sourceOutputs, binToHex(OWNER.lock), positionCommitment,
+  { curve: CURVE_V2, lockedBin: BIN, ownedBin: OWNED, collector: COLLECTOR, archive: ARCHIVE }, net), /category must derive/);
 validateTerminalPriceArithmetic(mV2, terms);
 checkTerminalPrice(mV2, terms, 100_000n);
 assert.throws(() => checkTerminalPrice(mV2, terms, 33_333n), /outside terminal/);
@@ -111,4 +129,4 @@ assert.throws(() => bchGraduationCurveFromManifestV1(mV2, terms,
   { ...grad, stateArchiveScript: binToHex(OWNER.lock) }, CURVE_V2, BIN, COLLECTOR, OWNED, ARCHIVE, net), /state archive/);
 assert.throws(() => bchGraduationCurveFromManifestV1(mV2, terms,
   { ...grad, collectorCarrierSats: 2_000n }, CURVE_V2, BIN, COLLECTOR, OWNED, ARCHIVE, net), /collector destinations/);
-console.log('Mesh Blaze BCH market and graduation constructors: 20 assertions passed');
+console.log('Mesh Blaze BCH market and graduation constructors: 24 assertions passed');
