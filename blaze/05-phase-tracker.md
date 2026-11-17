@@ -16,6 +16,8 @@ Updated 2026-11-17. Goal: implement the Mesh Blaze launch stack on `bchblaze` an
 
 ## Work sequence and exit gates
 
+Creator position NFT genesis now has a separate offline seed/genesis builder and verifier (`v4/blaze/src/graduation/position-genesis.ts`). Nine local assertions pass, including a BCH VM spend. It enforces a single non-minting NFT, zero fungible amount, and delivery to the creator's script. Before release, the manifest must commit the verified category and genesis transaction evidence; the graduation covenant currently pins the owned-bin script but does not prove the NFT's provenance. The terminal curve price also needs an enforceable band against the initial market bid/ask.
+
 These phases are capability groups. The token-quote design must inform the common manifest and graduation interface while the BCH curve is built. Each gate needs passing VM tests and a transaction builder that independently checks covenant outputs.
 
 1. **Genesis and launch manifest:** freeze the binary manifest and state commitment; enforce carrier, dust, fee-rate, allocation, NFT capability and hosted BCMR checks in the offline builder. Add a read-only chipnet verifier, then create one fresh chipnet fixed-supply FT and record txids. The current 15 genesis, 14 manifest and 4 metadata checks are local evidence only.
