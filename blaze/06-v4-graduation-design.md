@@ -1,6 +1,6 @@
 # Mesh Blaze to V4 graduation contract boundary
 
-Status: design and unsigned-plan gate, 2026-11-17. The existing BCH-quote curve has no graduation path. No market funding is yet authorized by its covenant. The draft V2 terms hash and unsigned handoff plan under `v4/blaze/src/graduation/` have 15 local assertions; the fixture reconstructs the existing V4 locked and owner-controlled bin scripts. The plan is not transaction authorization.
+Status: prototype gate, 2026-11-17. The production candidate BCH-quote V1 curve has no graduation path. A separate `MeshBlazeBchCurveV2Prototype.cash` compiles and its `graduate()` and `graduateAll()` paths pass 11 BCH VM checks. The draft V2 terms hash and unsigned handoff plan under `v4/blaze/src/graduation/` have 15 local assertions; the fixture reconstructs the existing V4 locked and owner-controlled bin scripts. Neither artifact is release ready.
 
 ## BCH quote: actual V4 funding
 
@@ -8,11 +8,13 @@ The completed curve UTXO holds the remaining launch FT, one mutable state NFT of
 
 The first handoff should require all three curve fee balances to be claimed before graduation. That leaves `carrier + realQuote` in the curve, makes the graduation asset ledger unambiguous, and keeps pre-graduation fees independent of post-graduation rights. The network fee and any extra bin dust must come from an explicit sponsor input; the curve reserve must not pay the keeper. The state NFT must go to a committed, permanently unspendable sink or a purpose-built archive covenant. A plain burn or arbitrary output is insufficient until its CashToken conservation and relay behavior are proven in the BCH VM.
 
+The V2 prototype checks terminal state, exact threshold, zero unclaimed fees, exact launch FT conservation, both BCH and FT lock percentages, destination script hashes, NFT commitment preservation, fixed curve carrier, sponsor change and a 5,000-sat fee cap. It has a two-bin path for 90–99.99% locked and a one-bin path for 100% locked. The lock comparison uses quotient and remainder to avoid an intermediate signed-VM multiplication overflow. The current VM fixture sends the state NFT to a spendable placeholder script, so **the prototype does not provide permanent NFT archival**. It also points to current V4 bins that have no three-recipient market fee ledger. These are explicit release blockers.
+
 For remaining base amount `B` and real quote `Q`, committed lock setting `L` basis points (at least 9,000) requires `lockedBase >= ceil(B*L/10000)` and `lockedQuote >= ceil(Q*L/10000)`. The creator portion is at most the remainder of **each** asset, separately. Both destination scripts, bin prices, carriers, output order, position ownership and NFT disposition must be enforced by the graduation covenant, not merely checked by a wallet builder. A sponsor may pay fees and supply extra BCH, but cannot redirect either asset.
 
 ## Why current artifacts cannot safely implement this yet
 
-- `MeshBlazeBchCurveV1.cash` commits only curve economics and pre-graduation fee recipients. It has no graduation destination or output validation.
+- `MeshBlazeBchCurveV1.cash` commits only curve economics and pre-graduation fee recipients. It has no graduation destination or output validation. The separate V2 prototype commits exact output script hashes in constructor arguments, but has no launch-manifest constructor or production archive/market destinations.
 - Manifest V1 has one `marketScriptHash` and one `graduationScriptHash`. Those do not identify the complete set of V4 bin scripts, prices, locked and creator position categories, required BCH carriers, state NFT destination, or fee-rights mechanism.
 - `MeshBinV4Locked.cash` removes the owner withdrawal path and lets spread compound in the bin. It does not distribute creator, partner and protocol fees. A graduated market with continuing three-way fees needs a versioned V4 fee-bearing variant or an equally enforced settlement covenant. An off-chain revenue promise does not meet the launch commitment.
 - `MeshBinV4.cash` lets the position NFT holder withdraw without output restrictions. That is suitable only for the disclosed creator share, which must never exceed 10% of either graduated asset at creation.
