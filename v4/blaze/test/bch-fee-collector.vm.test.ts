@@ -25,8 +25,8 @@ function claim(tamper: 'none' | 'recipient' | 'amount' | 'sponsor' | 'tooSmall' 
   b.addInput(utxo(OWNER.lock, 5_000n), OWNER.template.unlockP2PKH());
   b.addOutput({ to: lockOf(collector), amount: 1_000n });
   b.addOutput({ to: tamper === 'recipient' ? TAKER.lock : KEEPER.lock,
-    amount: tamper === 'amount' ? 999n : held - 1_000n });
-  b.addOutput({ to: tamper === 'sponsor' ? TAKER.lock : OWNER.lock, amount: 4_000n });
+    amount: tamper === 'amount' ? 999n : tamper === 'tooSmall' ? 546n : held - 1_000n });
+  b.addOutput({ to: tamper === 'sponsor' ? TAKER.lock : OWNER.lock, amount: tamper === 'tooSmall' ? 3_954n : 4_000n });
   return b;
 }
 function rejectAtCollector(b: ReturnType<typeof accrue> | ReturnType<typeof claim>) {
@@ -53,7 +53,7 @@ const cases: Array<[string, () => void]> = [
   ['claim rejects wrong recipient', () => rejectAtCollector(claim('recipient'))],
   ['claim rejects short payout', () => rejectAtCollector(claim('amount'))],
   ['claim rejects redirected sponsor change', () => rejectAtCollector(claim('sponsor'))],
-  ['builder cannot create a dust-sized fee claim', () => assert.throws(() => claim('tooSmall'), /required minimum/)],
+  ['sponsor can top up a dust-sized final claim', () => assert.equal(verify(buildTx(claim('tooSmall'))), true)],
 ];
 let failed = 0;
 for (const [name, run] of cases) {

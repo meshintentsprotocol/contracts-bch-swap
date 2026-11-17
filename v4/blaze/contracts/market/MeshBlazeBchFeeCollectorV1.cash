@@ -27,11 +27,14 @@ contract MeshBlazeBchFeeCollectorV1(bytes32 recipientScriptHash, bytes8 carrier)
         require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
         require(tx.outputs[0].value == int(carrier));
         int amount = tx.inputs[0].value - int(carrier);
-        require(amount >= 546);
-        require(tx.outputs[1].value == amount);
+        require(amount > 0);
+        // The sponsor may add BCH to make a tiny final claim dust-safe.
+        // All accrued BCH still leaves the collector for the recipient.
+        require(tx.outputs[1].value >= 546 && tx.outputs[1].value >= amount);
+        int sponsorTopUp = tx.outputs[1].value - amount;
         require(sha256(tx.outputs[1].lockingBytecode) == recipientScriptHash);
         require(tx.outputs[2].lockingBytecode == tx.inputs[1].lockingBytecode);
         require(tx.outputs[2].value >= 546);
-        require(tx.outputs[2].value >= tx.inputs[1].value - 5000);
+        require(tx.outputs[2].value >= tx.inputs[1].value - sponsorTopUp - 5000);
     }
 }
