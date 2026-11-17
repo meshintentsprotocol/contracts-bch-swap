@@ -4,6 +4,7 @@ import { decodeCurveStateV1 } from '../curve/state.js';
 import { launchManifestHashV1, type LaunchManifestV1 } from '../manifest/v1.js';
 import { bchFeeMarketFromManifestV1, bchOwnedFeeBinFromMarketV1, type BchMarketTermsV1 } from '../market/bch-market.js';
 import { bchGraduationTermsHashV2, type BchGraduationTermsV2 } from './bch-handoff.js';
+import { validateTerminalPriceArithmetic } from './price-continuity.js';
 
 const fail = (reason: string): never => { throw new Error(`Mesh Blaze BCH graduation curve: ${reason}`); };
 const hashScript = (hex: string) => binToHex(sha256.hash(hexToBin(hex)));
@@ -23,6 +24,7 @@ export function bchGraduationCurveFromManifestV1(m: LaunchManifestV1, marketTerm
   bchGraduationTermsHashV2(graduationTerms);
   if (graduationTerms.lockedBps !== m.lockedLiquidityBps) fail('lock percentage differs from manifest');
   const market = bchFeeMarketFromManifestV1(m, marketTerms, binArtifact, collectorArtifact, provider);
+  validateTerminalPriceArithmetic(m, marketTerms);
   if (graduationTerms.lockedBinScript !== market.bin.lockingBytecode)
     fail('locked destination is not the committed fee market');
   if (graduationTerms.collectorCarrierSats !== marketTerms.collectorCarrierSats ||
@@ -56,7 +58,9 @@ export function bchGraduationCurveFromManifestV1(m: LaunchManifestV1, marketTerm
     `0x${hashScript(graduationTerms.stateArchiveScript)}`,
     fixed(BigInt(graduationTerms.lockedBps), 2),
     ...graduationTerms.collectorScripts.map((script) => `0x${hashScript(script)}`),
-    fixed(graduationTerms.collectorCarrierSats, 8)],
+    fixed(graduationTerms.collectorCarrierSats, 8),
+    fixed(marketTerms.bidNum, 8), fixed(marketTerms.bidDen, 8),
+    fixed(marketTerms.askNum, 8), fixed(marketTerms.askDen, 8)],
     { provider, contractType: 'p2sh32' });
   if (hashScript(curve.lockingBytecode) !== m.curveScriptHash ||
       curve.lockingBytecode !== allocation.lockingBytecode)

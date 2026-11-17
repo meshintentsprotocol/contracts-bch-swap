@@ -26,7 +26,11 @@ contract MeshBlazeBchCurveV2Prototype(
     bytes32 creatorCollectorScriptHash,
     bytes32 partnerCollectorScriptHash,
     bytes32 protocolCollectorScriptHash,
-    bytes8 collectorCarrier
+    bytes8 collectorCarrier,
+    bytes8 marketBidNum,
+    bytes8 marketBidDen,
+    bytes8 marketAskNum,
+    bytes8 marketAskDen
 ) {
     function buy() {
         int i = this.activeInputIndex;
@@ -214,6 +218,16 @@ contract MeshBlazeBchCurveV2Prototype(
         require(tx.inputs[0].value == int(carrier) + quote);
         int base = tx.inputs[0].tokenAmount;
         require(base > 0);
+        int spotNum = int(virtualQuote) + quote;
+        int spotDen = int(virtualBase) + base;
+        int bid = int(marketBidNum) * spotDen;
+        int ask = int(marketAskNum) * spotDen;
+        int bidSpot = spotNum * int(marketBidDen);
+        int askSpot = spotNum * int(marketAskDen);
+        require(min(min(int(marketBidNum), int(marketBidDen)),
+                    min(int(marketAskNum), int(marketAskDen))) > 0);
+        require(bid <= bidSpot && ask >= askSpot);
+        require(bid * 10000 >= bidSpot * 9000 && ask * 10000 <= askSpot * 11000);
         require(tx.inputs[1].tokenCategory == 0x && tx.inputs[1].nftCommitment == 0x);
 
         require(sha256(tx.outputs[0].lockingBytecode) == lockedBinScriptHash);
@@ -267,6 +281,16 @@ contract MeshBlazeBchCurveV2Prototype(
         require(int(state.split(26)[1]) == 0);
         require(tx.inputs[0].value == int(carrier) + quote);
         require(tx.inputs[0].tokenAmount > 0);
+        int spotNum = int(virtualQuote) + quote;
+        int spotDen = int(virtualBase) + tx.inputs[0].tokenAmount;
+        int bid = int(marketBidNum) * spotDen;
+        int ask = int(marketAskNum) * spotDen;
+        int bidSpot = spotNum * int(marketBidDen);
+        int askSpot = spotNum * int(marketAskDen);
+        require(min(min(int(marketBidNum), int(marketBidDen)),
+                    min(int(marketAskNum), int(marketAskDen))) > 0);
+        require(bid <= bidSpot && ask >= askSpot);
+        require(bid * 10000 >= bidSpot * 9000 && ask * 10000 <= askSpot * 11000);
         require(tx.inputs[1].tokenCategory == 0x && tx.inputs[1].nftCommitment == 0x);
         require(sha256(tx.outputs[0].lockingBytecode) == lockedBinScriptHash);
         require(tx.outputs[0].tokenCategory == tokenCat && tx.outputs[0].nftCommitment == 0x);
@@ -289,4 +313,5 @@ contract MeshBlazeBchCurveV2Prototype(
         require(tx.outputs[5].value >= 546);
         require(tx.outputs[5].value >= tx.inputs[1].value - 1000 - 3 * int(collectorCarrier) - 5000);
     }
+
 }

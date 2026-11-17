@@ -34,17 +34,18 @@ const feeCreator = new Contract(FEE_OWNED, [`0x${catVm(TOKEN_A)}`, `0x${catVm('1
   ...collectors.map((c) => `0x${h(lockOf(c))}`),
   `0x${le(30n, 2)}`, `0x${le(800n, 2)}`, `0x${le(200n, 2)}`, `0x${le(1_000n, 2)}`],
   { provider: net, contractType: 'p2sh32' });
-function curveFor(lockBps: bigint, lockedScript = lockOf(locked), creatorScript = lockOf(creator)) { return new Contract(CURVE, [`0x${catVm(TOKEN_A)}`, `0x${le(100_000n, 8)}`,
+function curveFor(lockBps: bigint, lockedScript = lockOf(locked), creatorScript = lockOf(creator), bid = 7n, ask = 8n) { return new Contract(CURVE, [`0x${catVm(TOKEN_A)}`, `0x${le(100_000n, 8)}`,
   `0x${le(1_000_000n, 8)}`, `0x${le(500_003n, 8)}`, `0x${le(1_000n, 8)}`,
   `0x${le(50n, 2)}`, `0x${le(25n, 2)}`, `0x${le(25n, 2)}`,
   `0x${h(OWNER.lock)}`, `0x${h(TAKER.lock)}`, `0x${h(KEEPER.lock)}`,
   `0x${h(lockedScript)}`, `0x${h(creatorScript)}`, `0x${h(lockOf(archive))}`, `0x${le(lockBps, 2)}`,
   ...collectors.map((c) => `0x${h(lockOf(c))}`), `0x${le(1_000n, 8)}`,
+  `0x${le(bid, 8)}`, `0x${le(1n, 8)}`, `0x${le(ask, 8)}`, `0x${le(1n, 8)}`,
 ], { provider: net, contractType: 'p2sh32' }); }
 const curve = curveFor(9_000n);
 
-function spend(tamper: 'none' | 'lockedScript' | 'creatorScript' | 'base' | 'quote' | 'archive' | 'collector' | 'sponsor' | 'fees' | 'stage' = 'none', feeMarket = false) {
-  const sourceCurve = feeMarket ? curveFor(9_000n, lockOf(feeLocked), lockOf(feeCreator)) : curve;
+function spend(tamper: 'none' | 'lockedScript' | 'creatorScript' | 'base' | 'quote' | 'archive' | 'collector' | 'sponsor' | 'fees' | 'stage' = 'none', feeMarket = false, bid = 7n, ask = 8n) {
+  const sourceCurve = feeMarket ? curveFor(9_000n, lockOf(feeLocked), lockOf(feeCreator), bid, ask) : curveFor(9_000n, lockOf(locked), lockOf(creator), bid, ask);
   const s = tamper === 'fees' ? encodeCurveStateV1({ stage: 1, realQuote: 500_003n,
     creatorFees: 1n, partnerFees: 0n, protocolFees: 0n }) : tamper === 'stage' ?
       encodeCurveStateV1({ stage: 0, realQuote: 500_003n, creatorFees: 0n, partnerFees: 0n, protocolFees: 0n }) : state;
@@ -76,6 +77,8 @@ function spendAll(tamper: 'none' | 'base' | 'quote' = 'none') {
 const cases: Array<[string, () => void]> = [
   ['completed curve funds V4 locked and creator bins', () => assert.equal(verify(buildTx(spend())), true)],
   ['completed curve atomically funds locked and owned fee bins plus three collectors', () => assert.equal(verify(buildTx(spend('none', true))), true)],
+  ['terminal bid below ten percent band fails', () => assert.match(verify(buildTx(spend('none', false, 6n, 8n))) as string, /input index 0/i)],
+  ['terminal ask above ten percent band fails', () => assert.match(verify(buildTx(spend('none', false, 7n, 9n))) as string, /input index 0/i)],
   ['locked bin substitution fails at curve input', () => assert.match(verify(buildTx(spend('lockedScript'))) as string, /input index 0/i)],
   ['creator bin substitution fails at curve input', () => assert.match(verify(buildTx(spend('creatorScript', true))) as string, /input index 0/i)],
   ['underlocked launch FT fails', () => assert.match(verify(buildTx(spend('base'))) as string, /input index 0/i)],

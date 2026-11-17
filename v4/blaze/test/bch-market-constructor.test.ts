@@ -7,6 +7,7 @@ import { encodeCurveStateV1 } from '../src/curve/state.js';
 import { bchFeeMarketFromManifestV1, validateBchMarketArithmeticV1,
   type BchMarketTermsV1 } from '../src/market/bch-market.js';
 import { bchGraduationCurveFromManifestV1 } from '../src/graduation/bch-curve-v2.js';
+import { validateTerminalPriceArithmetic, checkTerminalPrice } from '../src/graduation/price-continuity.js';
 import type { BchGraduationTermsV2 } from '../src/graduation/bch-handoff.js';
 import type { LaunchManifestV1 } from '../src/manifest/v1.js';
 
@@ -88,7 +89,8 @@ const curveV2 = new Contract(CURVE_V2, [`0x${catVm(TOKEN_A)}`,
   `0x${m.curveFees.protocol.scriptHash}`, `0x${hash(grad.lockedBinScript)}`,
   `0x${hash(grad.creatorBinScript)}`, `0x${hash(grad.stateArchiveScript)}`,
   `0x${le(9_000n, 2)}`, ...grad.collectorScripts.map((script) => `0x${hash(script)}`),
-  `0x${le(1_000n, 8)}`], { provider: net, contractType: 'p2sh32' });
+  `0x${le(1_000n, 8)}`, `0x${le(7n, 8)}`, `0x${le(1n, 8)}`,
+  `0x${le(8n, 8)}`, `0x${le(1n, 8)}`], { provider: net, contractType: 'p2sh32' });
 const mV2 = { ...m, curveScriptHash: hash(curveV2.lockingBytecode),
   allocations: [{ ...m.allocations[0]!, lockingBytecode: curveV2.lockingBytecode }] };
 const linked = bchGraduationCurveFromManifestV1(mV2, terms, grad, CURVE_V2, BIN, COLLECTOR, OWNED, ARCHIVE, net);
@@ -96,6 +98,11 @@ assert.equal(linked.curve.lockingBytecode, curveV2.lockingBytecode);
 assert.equal(linked.market.bin.lockingBytecode, grad.lockedBinScript);
 assert.equal(linked.creatorBin.lockingBytecode, grad.creatorBinScript);
 assert.equal(linked.archive.bytecode, '00');
+validateTerminalPriceArithmetic(mV2, terms);
+checkTerminalPrice(mV2, terms, 100_000n);
+assert.throws(() => checkTerminalPrice(mV2, terms, 33_333n), /outside terminal/);
+assert.throws(() => validateTerminalPriceArithmetic(mV2,
+  { ...terms, bidDen: (1n << 63n) - 1n }), /exceeds signed VM/);
 assert.throws(() => bchGraduationCurveFromManifestV1(mV2, terms,
   { ...grad, creatorBinScript: binToHex(TAKER.lock) }, CURVE_V2, BIN, COLLECTOR, OWNED, ARCHIVE, net), /creator destination/);
 assert.throws(() => bchGraduationCurveFromManifestV1(mV2, terms,
@@ -104,4 +111,4 @@ assert.throws(() => bchGraduationCurveFromManifestV1(mV2, terms,
   { ...grad, stateArchiveScript: binToHex(OWNER.lock) }, CURVE_V2, BIN, COLLECTOR, OWNED, ARCHIVE, net), /state archive/);
 assert.throws(() => bchGraduationCurveFromManifestV1(mV2, terms,
   { ...grad, collectorCarrierSats: 2_000n }, CURVE_V2, BIN, COLLECTOR, OWNED, ARCHIVE, net), /collector destinations/);
-console.log('Mesh Blaze BCH market and graduation constructors: 18 assertions passed');
+console.log('Mesh Blaze BCH market and graduation constructors: 20 assertions passed');
