@@ -10,7 +10,6 @@ export interface BchGraduationTermsV2 {
   lockedBinScript: string;
   creatorBinScript: string;
   stateArchiveScript: string;
-  lockedPositionCategory: string;
   creatorPositionCategory: string;
   lockedBps: number;
   collectorScripts: readonly [string, string, string];
@@ -39,10 +38,9 @@ function encodedTerms(t: BchGraduationTermsV2): Uint8Array {
   if (t.collectorScripts.length !== 3) fail('exactly three collector scripts required');
   if (t.collectorCarrierSats < 1_000n || t.collectorCarrierSats >= 1n << 63n)
     fail('collector carrier outside VM range');
-  const categories = [categoryBytes(t.lockedPositionCategory), categoryBytes(t.creatorPositionCategory)];
-  if (t.lockedPositionCategory === t.creatorPositionCategory) fail('position categories must differ');
+  const creatorCategory = categoryBytes(t.creatorPositionCategory);
   const scripts = [t.lockedBinScript, t.creatorBinScript, t.stateArchiveScript, ...t.collectorScripts].map(scriptBytes);
-  const parts: number[] = [2, t.lockedBps & 255, t.lockedBps >> 8, ...categories[0]!, ...categories[1]!];
+  const parts: number[] = [2, t.lockedBps & 255, t.lockedBps >> 8, ...creatorCategory];
   for (let i = 0; i < 8; i++) parts.push(Number((t.collectorCarrierSats >> BigInt(i * 8)) & 255n));
   for (const script of scripts) parts.push(script.length & 255, script.length >> 8, ...script);
   return Uint8Array.from(parts);
@@ -58,7 +56,7 @@ function expectedOutputs(m: LaunchManifestV1, curve: SpendableUtxo, sponsor: Spe
   if (terms.lockedBps !== m.lockedLiquidityBps) fail('lock share differs from launch manifest');
   if (binToHex(sha256.hash(scriptBytes(terms.lockedBinScript))) !== m.marketScriptHash)
     fail('locked market script differs from launch manifest');
-  if ([terms.lockedPositionCategory, terms.creatorPositionCategory].includes(m.tokenCategory))
+  if (terms.creatorPositionCategory === m.tokenCategory)
     fail('position category must differ from launch token');
   if (networkFee < 0n || networkFee > 5_000n) fail('network fee outside cap');
   if (sponsor.token) fail('sponsor input must be BCH only');

@@ -39,7 +39,7 @@ export function bchGraduationCurveFromManifestV1(m: LaunchManifestV1, marketTerm
   const archive = new Contract(archiveArtifact, [], { provider, contractType: 'p2sh32' });
   if (archive.bytecode !== '00' || archive.lockingBytecode !== graduationTerms.stateArchiveScript)
     fail('state archive is not the permanent OP_0 covenant');
-  if ([graduationTerms.lockedPositionCategory, graduationTerms.creatorPositionCategory].includes(m.tokenCategory))
+  if (graduationTerms.creatorPositionCategory === m.tokenCategory)
     fail('position category equals launch token');
   const allocation = m.allocations.find((a) => a.name === 'curve');
   if (!allocation?.nftCommitment) throw new Error('Mesh Blaze BCH graduation curve: missing curve state NFT');

@@ -23,7 +23,7 @@ const archive = new Contract(JSON.parse(readFileSync('blaze/artifacts/MeshBlazeS
   [], { provider: net, contractType: 'p2sh32' });
 const terms: BchGraduationTermsV2 = {
   lockedBinScript: lockedBin.lockingBytecode, creatorBinScript: creatorBin.lockingBytecode,
-  stateArchiveScript: archive.lockingBytecode, lockedPositionCategory: TOKEN_B,
+  stateArchiveScript: archive.lockingBytecode,
   creatorPositionCategory: '11'.repeat(32), lockedBps: 9_000,
   collectorScripts: [binToHex(OWNER.lock), binToHex(TAKER.lock), binToHex(KEEPER.lock)],
   collectorCarrierSats: 1_000n,

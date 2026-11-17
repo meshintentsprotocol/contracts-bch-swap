@@ -69,7 +69,7 @@ function signedFixture(lockBps = 9_000, networkFee = 4_000n) {
   };
   const terms: BchGraduationTermsV2 = { lockedBinScript: feeLocked.lockingBytecode,
     creatorBinScript: feeCreator.lockingBytecode, stateArchiveScript: archive.lockingBytecode,
-    lockedPositionCategory: TOKEN_B, creatorPositionCategory: '11'.repeat(32), lockedBps: lockBps,
+    creatorPositionCategory: '11'.repeat(32), lockedBps: lockBps,
     collectorScripts: collectors.map((collector) => collector.lockingBytecode) as [string, string, string],
     collectorCarrierSats: 1_000n };
   const source = utxo(c.lockingBytecode, 501_003n, nft(TOKEN_A, 'mutable', state, 100_001n));
@@ -150,7 +150,7 @@ function reachableLifecycle() {
   }
   const terms: BchGraduationTermsV2 = { lockedBinScript: marketLocked.lockingBytecode,
     creatorBinScript: marketOwned.lockingBytecode, stateArchiveScript: archive.lockingBytecode,
-    lockedPositionCategory: TOKEN_B, creatorPositionCategory: '11'.repeat(32), lockedBps: 9_000,
+    creatorPositionCategory: '11'.repeat(32), lockedBps: 9_000,
     collectorScripts: collectors.map((collector) => collector.lockingBytecode) as [string, string, string],
     collectorCarrierSats: 1_000n };
   const handoff = planBchGraduationV2(m, curveInput, sponsor,

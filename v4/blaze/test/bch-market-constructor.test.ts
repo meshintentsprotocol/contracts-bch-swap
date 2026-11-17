@@ -84,7 +84,7 @@ assert.throws(() => validateBchMarketArithmeticV1(m, { ...terms, askNum: (1n << 
 assert.throws(() => validateBchMarketArithmeticV1({ ...m, quoteCategory: TOKEN_B }, terms), /quote must be BCH/);
 const grad: BchGraduationTermsV2 = {
   lockedBinScript: built.bin.lockingBytecode, creatorBinScript: owned.lockingBytecode,
-  stateArchiveScript: archive.lockingBytecode, lockedPositionCategory: TOKEN_B,
+  stateArchiveScript: archive.lockingBytecode,
   creatorPositionCategory: position.category, lockedBps: 9_000,
   collectorScripts: [built.creatorCollector.lockingBytecode, built.partnerCollector.lockingBytecode,
     built.protocolCollector.lockingBytecode], collectorCarrierSats: 1_000n,
