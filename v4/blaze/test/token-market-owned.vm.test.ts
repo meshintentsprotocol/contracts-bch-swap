@@ -63,6 +63,29 @@ function buy() {
   return buildTx(builder);
 }
 assert.equal(verify(buy()), true);
+function sell() {
+  const builder = tb();
+  builder.addInput(utxo(base.lockingBytecode, 1_000n,
+    { category: TOKEN_A, amount: 53_333n }), base.unlock.sell());
+  builder.addInput(utxo(quote.lockingBytecode, 1_000n,
+    { category: TOKEN_B, amount: 71_050n }), quote.unlock.sell());
+  for (const [i, amount] of [5n, 1n, 7n].entries())
+    builder.addInput(utxo(collectors[i]!.lockingBytecode, 1_000n,
+      { category: TOKEN_B, amount }), collectors[i]!.unlock.accrue());
+  builder.addInput(utxo(TAKER.lock, 5_000n,
+    { category: TOKEN_A, amount: 10_000n }), TAKER.template.unlockP2PKH());
+  builder.addOutput({ to: lockOf(base), amount: 1_000n,
+    token: { category: TOKEN_A, amount: 63_333n } });
+  builder.addOutput({ to: lockOf(quote), amount: 1_000n,
+    token: { category: TOKEN_B, amount: 51_098n } });
+  for (const [i, amount] of [9n, 2n, 14n].entries())
+    builder.addOutput({ to: lockOf(collectors[i]!), amount: 1_000n,
+      token: { category: TOKEN_B, amount } });
+  builder.addOutput({ to: TAKER.lock, amount: 1_000n,
+    token: { category: TOKEN_B, amount: 19_940n } });
+  return buildTx(builder);
+}
+assert.equal(verify(sell()), true);
 for (const attack of ['wrongOwner', 'baseAmount', 'quoteAmount', 'recipient', 'fee'] as const) {
   const tx = exit(attack);
   assert.notEqual(verify(tx), true, `${attack} must fail`);
@@ -70,4 +93,4 @@ for (const attack of ['wrongOwner', 'baseAmount', 'quoteAmount', 'recipient', 'f
   assert.equal(metrics[0]!.ok, false, `${attack} base must reject`);
   assert.equal(metrics[1]!.ok, false, `${attack} quote must reject`);
 }
-console.log('Mesh Blaze owned token market VM: buy, NFT exit and 5 attacks passed');
+console.log('Mesh Blaze owned token market VM: buy, sell, NFT exit and 5 attacks passed');

@@ -1,6 +1,6 @@
 # Mesh Blaze CashToken-quote graduation boundary
 
-Status: E2 prototype, 2026-11-17. `src/graduation/token-pair-handoff.ts` computes and independently verifies the 90% and 100% layouts; 19 focused assertions pass. New V2 base and quote vault prototypes compile and both graduation paths pass the BCH VM. Four tampered-output fixtures fail at both covenant inputs. Locked token/token market buy/sell and eight attacks pass the VM; the creator pair passes a buy, NFT-controlled atomic exit and five attacks. The quote-token collector passes eight VM checks, including zero-fee accrual. A linked graduation into actual market scripts, terminal price-continuity checks, signed transactions and chipnet E2 remain open. The [BCH E1 evidence](../../../blaze/08-chipnet-e1-evidence.md) does not prove this path.
+Status: E2 local prototype, 2026-11-17. `src/graduation/token-pair-handoff.ts` verifies the 90% and 100% layouts with 19 focused assertions. V2 base and quote vaults compile; a signed local VM fixture graduates into the compiled locked and creator-owned market scripts, buys from the locked pair and claims all three quote-token fees. Both vaults reject an out-of-band terminal price. Locked market buy/sell and eight attacks pass; the creator pair passes buy/sell, atomic NFT exit and five attacks. The quote-token collector passes eight VM checks, including zero-fee accrual. A complete linked curve-from-genesis sequence, V2 retained-trade regression, independent artifact reconstruction, chipnet E2 and external review remain open. The [BCH E1 evidence](../../../blaze/08-chipnet-e1-evidence.md) does not prove this path.
 
 ## Asset model
 
@@ -43,8 +43,8 @@ Suggested new artifacts:
 ## Build and proof order
 
 1. Freeze a versioned graduation terms encoding that commits both market scripts, both creator scripts, archive script, three collectors, position category, carrier assignments, fee cap and lock share. Reconstruct every script from the manifest and terms before signing. The current unsigned hash does not yet have a public launch commitment.
-2. Extend the current V2 graduation VM fixtures with substituted base/quote inputs, price-continuity bounds and real market destinations. Confirm the retained buy, sell and claim methods against the new V2 artifact hashes.
-3. Bind graduation to the compiled locked and creator-owned market pairs and quote-token collectors. The standalone market and collector paths pass local VM checks; prove a linked graduation, market buy/sell and all fee claims before signing.
+2. Extend the V2 graduation VM fixtures with substituted base/quote inputs and confirm retained buy, sell and claim methods against the new V2 artifact hashes. The 10% terminal price bound and compiled market destinations now pass local graduation tests.
+3. Extend the linked fixture from fresh token genesis through curve buy, sell, terminal partial buy/refund and all curve fee claims. The current linked fixture starts at a synthetic completed pair and reaches market buy plus all three market fee claims; standalone market sell also passes.
 4. Sign a linked local sequence from fresh fixed-supply genesis through buy, sell, terminal partial buy/refund, all curve fee claims, paired graduation, market swap and all market fee claims.
 5. Run the same sequence on chipnet with an independently issued quote CashToken; retain txids, actual source outputs, VM results, final UTXOs, token supply conservation and confirmation depth. Reject a public E2 claim until this evidence exists.
 

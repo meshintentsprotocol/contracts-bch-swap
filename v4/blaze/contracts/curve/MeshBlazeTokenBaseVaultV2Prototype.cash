@@ -28,7 +28,11 @@ contract MeshBlazeTokenBaseVaultV2Prototype(
     bytes32 archiveHash,
     bytes32 creatorCollectorHash,
     bytes32 partnerCollectorHash,
-    bytes32 protocolCollectorHash
+    bytes32 protocolCollectorHash,
+    bytes8 marketBidNum,
+    bytes8 marketBidDen,
+    bytes8 marketAskNum,
+    bytes8 marketAskDen
 ) {
     function buy() {
         require(this.activeInputIndex == 0);
@@ -246,6 +250,16 @@ contract MeshBlazeTokenBaseVaultV2Prototype(
         require(tx.inputs[2].tokenCategory == 0x && tx.inputs[2].nftCommitment == 0x);
         int base = tx.inputs[0].tokenAmount;
         require(base > 0);
+        int spotNum = int(virtualQuote) + quote;
+        int spotDen = int(virtualBase) + base;
+        int bid = int(marketBidNum) * spotDen;
+        int ask = int(marketAskNum) * spotDen;
+        int bidSpot = spotNum * int(marketBidDen);
+        int askSpot = spotNum * int(marketAskDen);
+        require(min(min(int(marketBidNum), int(marketBidDen)),
+                    min(int(marketAskNum), int(marketAskDen))) > 0);
+        require(bid <= bidSpot && ask >= askSpot);
+        require(bid * 10000 >= bidSpot * 9000 && ask * 10000 <= askSpot * 11000);
         int lock = int(lockedBps);
         int baseWhole = base / 10000;
         int baseRem = base - baseWhole * 10000;
@@ -300,6 +314,16 @@ contract MeshBlazeTokenBaseVaultV2Prototype(
         require(tx.inputs[1].nftCommitment == 0x && tx.inputs[1].value == int(quoteCarrier));
         require(tx.inputs[2].tokenCategory == 0x && tx.inputs[2].nftCommitment == 0x);
         require(tx.inputs[0].tokenAmount > 0);
+        int spotNum = int(virtualQuote) + quote;
+        int spotDen = int(virtualBase) + tx.inputs[0].tokenAmount;
+        int bid = int(marketBidNum) * spotDen;
+        int ask = int(marketAskNum) * spotDen;
+        int bidSpot = spotNum * int(marketBidDen);
+        int askSpot = spotNum * int(marketAskDen);
+        require(min(min(int(marketBidNum), int(marketBidDen)),
+                    min(int(marketAskNum), int(marketAskDen))) > 0);
+        require(bid <= bidSpot && ask >= askSpot);
+        require(bid * 10000 >= bidSpot * 9000 && ask * 10000 <= askSpot * 11000);
         require(sha256(tx.outputs[0].lockingBytecode) == lockedBaseHash);
         require(sha256(tx.outputs[1].lockingBytecode) == lockedQuoteHash);
         require(tx.outputs[0].tokenCategory == launchCat && tx.outputs[1].tokenCategory == quoteCat);
