@@ -55,7 +55,7 @@ tampered.outputs[1]!.token!.amount -= 1n;
 assert.throws(() => verifyTokenPairGraduationPlanV1(manifest(), tampered), /output 1 differs/);
 assert.throws(() => planTokenPairGraduationV1(manifest(), base, quote, sponsor, terms, zero, 1_000n), /terms hash differs/);
 assert.throws(() => planTokenPairGraduationV1(manifest(), base, quote, sponsor,
-  terms, termsHash, 5_001n), /network fee outside cap/);
+  terms, termsHash, 10_001n), /network fee outside cap/);
 assert.throws(() => planTokenPairGraduationV1(manifest(), base, quote,
   utxo(KEEPER.lock, 1_000n), terms, termsHash, 1_000n), /cannot fund outputs/);
 assert.throws(() => planTokenPairGraduationV1(manifest(), base,

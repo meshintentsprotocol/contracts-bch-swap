@@ -6,6 +6,7 @@ import { launchManifestHashV1, type LaunchManifestV1 } from '../manifest/v1.js';
 import type { PlannedOutput } from './buy-plan.js';
 
 export interface TokenPairBuyPlanV1 {
+  feeCap: bigint;
   baseInput: SpendableUtxo;
   quoteInput: SpendableUtxo;
   buyerInput: SpendableUtxo;
@@ -54,9 +55,11 @@ function sameToken(actual: PlannedOutput, category: string, amount: bigint, comm
 
 /** Exact-in quote plan; three outputs for exact funding, four for positive quote change. */
 export function planTokenPairBuyV1(m: LaunchManifestV1, baseInput: SpendableUtxo, quoteInput: SpendableUtxo,
-  buyerInput: SpendableUtxo, maxGross: bigint, networkFee: bigint, minBaseOut: bigint): TokenPairBuyPlanV1 {
+  buyerInput: SpendableUtxo, maxGross: bigint, networkFee: bigint, minBaseOut: bigint,
+  feeCap = 5_000n): TokenPairBuyPlanV1 {
   const { inventory, held } = readInputs(m, baseInput, quoteInput, buyerInput);
-  if (networkFee < 0n || networkFee > 5_000n) fail('network fee outside covenant cap');
+  if (![5_000n, 10_000n].includes(feeCap) || networkFee < 0n || networkFee > feeCap)
+    fail('network fee outside covenant cap');
   if (minBaseOut <= 0n) fail('minimum base output must be positive');
   const trade = quoteBuy(tokenPairCurveConfigV1(m), inventory, maxGross);
   if (trade.baseOut < minBaseOut) fail('slippage: base output below minimum');
@@ -76,7 +79,8 @@ export function planTokenPairBuyV1(m: LaunchManifestV1, baseInput: SpendableUtxo
   ];
   if (remainder > 0n) outputs.push({ lockingBytecode: buyerInput.lockingBytecode, satoshis: buyerQuoteCarrier,
     token: { category: m.quoteCategory!, amount: remainder } });
-  const plan: TokenPairBuyPlanV1 = { baseInput, quoteInput, buyerInput, outputs, quote: trade, maxGross, networkFee, minBaseOut };
+  const plan: TokenPairBuyPlanV1 = { baseInput, quoteInput, buyerInput, outputs, quote: trade, maxGross,
+    networkFee, minBaseOut, feeCap };
   verifyTokenPairBuyPlanV1(m, plan);
   return plan;
 }
@@ -84,7 +88,8 @@ export function planTokenPairBuyV1(m: LaunchManifestV1, baseInput: SpendableUtxo
 /** Recompute economics and exact destinations before presenting the plan for signatures. */
 export function verifyTokenPairBuyPlanV1(m: LaunchManifestV1, plan: TokenPairBuyPlanV1): void {
   const { inventory, held } = readInputs(m, plan.baseInput, plan.quoteInput, plan.buyerInput);
-  if (plan.networkFee < 0n || plan.networkFee > 5_000n) fail('network fee outside covenant cap');
+  if (![5_000n, 10_000n].includes(plan.feeCap) || plan.networkFee < 0n || plan.networkFee > plan.feeCap)
+    fail('network fee outside covenant cap');
   const expected = quoteBuy(tokenPairCurveConfigV1(m), inventory, plan.maxGross);
   if (expected.baseOut < plan.minBaseOut || plan.quote.usedGross !== expected.usedGross ||
       encodeCurveStateV1(plan.quote.next.state) !== encodeCurveStateV1(expected.next.state) ||

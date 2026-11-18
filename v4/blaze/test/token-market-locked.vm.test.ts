@@ -59,6 +59,7 @@ function trade(side: Side, attack: Attack = 'none') {
 }
 for (const side of ['buy', 'sell'] as const) {
   const good = trade(side);
+  console.log(`SIZE E2 locked ${side}: ${good.size}`);
   assert.equal(verify(good), true, `${side} must pass`);
   const metrics = inputMetrics(good);
   assert.equal(metrics[0]!.ok, true);

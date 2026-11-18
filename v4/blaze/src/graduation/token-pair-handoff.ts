@@ -65,7 +65,7 @@ function expected(m: LaunchManifestV1, base: SpendableUtxo, quote: SpendableUtxo
   if (terms.lockedBps !== m.lockedLiquidityBps) fail('lock share differs from manifest');
   if (binToHex(sha256.hash(script(terms.lockedBaseScript))) !== m.marketScriptHash)
     fail('locked base market script differs from manifest');
-  if (networkFee < 0n || networkFee > 5_000n) fail('network fee outside cap');
+  if (networkFee < 0n || networkFee > 10_000n) fail('network fee outside cap');
   if (sponsor.token) fail('sponsor input must be BCH only');
   const { inventory, held } = readTokenPairVaultsV1(m, base, quote);
   const state = inventory.state;

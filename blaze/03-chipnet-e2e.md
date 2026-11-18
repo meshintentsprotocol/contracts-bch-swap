@@ -64,3 +64,6 @@ The repo also has `v4/tools/chipnet-position-genesis.ts` for an earlier V4 posit
 | Blaze typecheck | Passed | `npm.cmd run typecheck` in `v4/` includes `v4/blaze/**/*.ts` |
 
 The Node errors are execution environment/process-shutdown issues; the completed V4 suite itself passed. The chipnet verifier's nonzero exit remains an automation defect to fix before using it as a CI gate, even though every printed chain assertion passed. The Blaze genesis VM test is offline and does not prove a Blaze E2E lifecycle.
+## E2 token/token status, 2026-11-17
+
+The [E2 signed local VM lifecycle](09-local-e2-evidence.md) covers 22 linked transactions and conserves both token supplies. E2 has **not** been broadcast to chipnet; this document's confirmed E1 BCH-quote run does not establish token/token relay acceptance or confirmation. The next E2 run must retain every txid, actual UTXO and fee, confirmation depth, final market reserves and all creator/partner/protocol claims.

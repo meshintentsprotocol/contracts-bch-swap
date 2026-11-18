@@ -106,14 +106,14 @@ contract MeshBlazeTokenBaseVaultV2Prototype(
         require(tx.outputs[2].value >= 1000);
         if (tx.inputs[2].tokenAmount == gross) {
             require(tx.outputs.length == 3);
-            require(tx.outputs[2].value >= tx.inputs[2].value - 5000);
+            require(tx.outputs[2].value >= tx.inputs[2].value - 10000);
         } else {
             require(tx.outputs.length == 4);
             require(tx.outputs[3].tokenCategory == quoteCat);
             require(tx.outputs[3].tokenAmount == tx.inputs[2].tokenAmount - gross);
             require(tx.outputs[3].lockingBytecode == tx.inputs[2].lockingBytecode);
             require(tx.outputs[3].value >= 1000);
-            require(tx.outputs[2].value + tx.outputs[3].value >= tx.inputs[2].value - 5000);
+            require(tx.outputs[2].value + tx.outputs[3].value >= tx.inputs[2].value - 10000);
         }
         require(creatorRecipientHash.length == 32 && partnerRecipientHash.length == 32 && protocolRecipientHash.length == 32);
     }
@@ -171,7 +171,7 @@ contract MeshBlazeTokenBaseVaultV2Prototype(
         require(tx.outputs[2].tokenCategory == quoteCat);
         require(tx.outputs[2].tokenAmount == gross - fee);
         require(tx.outputs[2].lockingBytecode == tx.inputs[2].lockingBytecode);
-        require(tx.outputs[2].value >= 1000 && tx.outputs[2].value >= tx.inputs[2].value - 5000);
+        require(tx.outputs[2].value >= 1000 && tx.outputs[2].value >= tx.inputs[2].value - 10000);
     }
 
     function claim(int role) {
@@ -228,7 +228,7 @@ contract MeshBlazeTokenBaseVaultV2Prototype(
         require(tx.outputs[2].value >= 1000);
         require(tx.outputs[3].lockingBytecode == tx.inputs[2].lockingBytecode);
         require(tx.outputs[3].value >= 546);
-        require(tx.outputs[2].value + tx.outputs[3].value >= tx.inputs[2].value - 5000);
+        require(tx.outputs[2].value + tx.outputs[3].value >= tx.inputs[2].value - 10000);
     }
     function graduate() {
         require(this.activeInputIndex == 0 && tx.inputs.length == 3 && tx.outputs.length == 9);
@@ -294,7 +294,7 @@ contract MeshBlazeTokenBaseVaultV2Prototype(
         require(tx.outputs[8].lockingBytecode == tx.inputs[2].lockingBytecode);
         int available = tx.inputs[2].value + int(quoteCarrier) - 4 * int(marketCarrier) - 3 * int(collectorCarrier);
         require(tx.outputs[8].value >= 546 && tx.outputs[8].value < available);
-        require(tx.outputs[8].value >= available - 5000);
+        require(tx.outputs[8].value >= available - 10000);
     }
 
     function graduateAll() {
@@ -344,6 +344,6 @@ contract MeshBlazeTokenBaseVaultV2Prototype(
         require(tx.outputs[6].lockingBytecode == tx.inputs[2].lockingBytecode);
         int available = tx.inputs[2].value + int(quoteCarrier) - 2 * int(marketCarrier) - 3 * int(collectorCarrier);
         require(tx.outputs[6].value >= 546 && tx.outputs[6].value < available);
-        require(tx.outputs[6].value >= available - 5000);
+        require(tx.outputs[6].value >= available - 10000);
     }
 }

@@ -6,6 +6,7 @@ import type { PlannedOutput } from './buy-plan.js';
 import type { LaunchManifestV1 } from '../manifest/v1.js';
 
 export interface TokenPairSellPlanV1 {
+  feeCap: bigint;
   baseInput: SpendableUtxo;
   quoteInput: SpendableUtxo;
   sellerInput: SpendableUtxo;
@@ -38,13 +39,16 @@ function outputsFor(m: LaunchManifestV1, base: SpendableUtxo, quote: SpendableUt
 }
 
 export function planTokenPairSellV1(m: LaunchManifestV1, baseInput: SpendableUtxo, quoteInput: SpendableUtxo,
-  sellerInput: SpendableUtxo, networkFee: bigint, minQuoteOut: bigint): TokenPairSellPlanV1 {
+  sellerInput: SpendableUtxo, networkFee: bigint, minQuoteOut: bigint,
+  feeCap = 5_000n): TokenPairSellPlanV1 {
   const { inventory } = readTokenPairVaultsV1(m, baseInput, quoteInput);
-  if (networkFee < 0n || networkFee > 5_000n) fail('network fee outside covenant cap');
+  if (![5_000n, 10_000n].includes(feeCap) || networkFee < 0n || networkFee > feeCap)
+    fail('network fee outside covenant cap');
   if (minQuoteOut < 0n) fail('negative minimum quote output');
   const trade = quoteSell(tokenPairCurveConfigV1(m), inventory, sellerAmount(m, sellerInput));
   if (trade.traderQuote < minQuoteOut) fail('slippage: quote output below minimum');
-  const plan: TokenPairSellPlanV1 = { baseInput, quoteInput, sellerInput, networkFee, minQuoteOut, quote: trade,
+  const plan: TokenPairSellPlanV1 = { baseInput, quoteInput, sellerInput, networkFee, minQuoteOut,
+    feeCap, quote: trade,
     outputs: outputsFor(m, baseInput, quoteInput, sellerInput, trade, networkFee) };
   verifyTokenPairSellPlanV1(m, plan);
   return plan;
@@ -52,7 +56,8 @@ export function planTokenPairSellV1(m: LaunchManifestV1, baseInput: SpendableUtx
 
 export function verifyTokenPairSellPlanV1(m: LaunchManifestV1, plan: TokenPairSellPlanV1): void {
   const { inventory } = readTokenPairVaultsV1(m, plan.baseInput, plan.quoteInput);
-  if (plan.networkFee < 0n || plan.networkFee > 5_000n || plan.outputs.length !== 3)
+  if (![5_000n, 10_000n].includes(plan.feeCap) || plan.networkFee < 0n ||
+      plan.networkFee > plan.feeCap || plan.outputs.length !== 3)
     fail('invalid fee or output count');
   const expected = quoteSell(tokenPairCurveConfigV1(m), inventory, sellerAmount(m, plan.sellerInput));
   if (expected.traderQuote < plan.minQuoteOut || plan.quote.grossQuote !== expected.grossQuote ||

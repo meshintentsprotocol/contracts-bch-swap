@@ -41,6 +41,7 @@ function exit(attack: Attack) {
   return buildTx(builder);
 }
 assert.equal(verify(exit('none')), true);
+console.log(`SIZE E2 owned exit: ${exit('none').size}`);
 function buy() {
   const builder = tb();
   builder.addInput(utxo(base.lockingBytecode, 1_000n,
@@ -63,6 +64,7 @@ function buy() {
   return buildTx(builder);
 }
 assert.equal(verify(buy()), true);
+console.log(`SIZE E2 owned buy: ${buy().size}`);
 function sell() {
   const builder = tb();
   builder.addInput(utxo(base.lockingBytecode, 1_000n,
@@ -86,6 +88,7 @@ function sell() {
   return buildTx(builder);
 }
 assert.equal(verify(sell()), true);
+console.log(`SIZE E2 owned sell: ${sell().size}`);
 for (const attack of ['wrongOwner', 'baseAmount', 'quoteAmount', 'recipient', 'fee'] as const) {
   const tx = exit(attack);
   assert.notEqual(verify(tx), true, `${attack} must fail`);

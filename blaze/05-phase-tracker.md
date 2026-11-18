@@ -34,7 +34,7 @@ These phases are capability groups. The token-quote design must inform the commo
 
 ## Next implementation slice
 
-The next implementation slice is CashToken-quoted E2: signed paired-vault transactions, terminal refund, token/token graduation and a fee-bearing market lifecycle. The paired token-quote buy, sell and claim paths already spend both covenants atomically in the BCH VM with manifest-derived unsigned plans. Follow E2 with Presale and both Alpha modes, then SDK/indexer/UI integration. Both quote paths still require worst-case cost and relay-policy review.
+The local CashToken-quoted E2 path now has a [22-transaction signed VM lifecycle](09-local-e2-evidence.md) from independent token genesis through terminal refund, paired graduation, market buy and all fee claims. The next gate is chipnet E2 execution with real UTXOs, txids, confirmations and supply checks. Follow E2 with Presale and both Alpha modes, then SDK/indexer/UI integration. Both quote paths still require worst-case cost and relay-policy review.
 
 ## Commit discipline
 
