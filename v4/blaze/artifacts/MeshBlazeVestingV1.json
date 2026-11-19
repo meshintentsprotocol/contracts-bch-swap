@@ -1,0 +1,38 @@
+{
+  "contractName": "MeshBlazeVestingV1",
+  "constructorInputs": [
+    { "name": "tokenCat", "type": "bytes32" },
+    { "name": "recipientScriptHash", "type": "bytes32" },
+    { "name": "tokenAmount", "type": "bytes8" },
+    { "name": "unlockHeight", "type": "bytes4" }
+  ],
+  "abi": [
+    { "name": "release", "inputs": [] }
+  ],
+  "bytecode": "OP_INPUTINDEX OP_DUP OP_UTXOTOKENCATEGORY OP_2 OP_PICK OP_EQUALVERIFY OP_DUP OP_UTXOTOKENAMOUNT OP_4 OP_PICK OP_BIN2NUM OP_NUMEQUALVERIFY OP_4 OP_ROLL OP_BIN2NUM OP_CHECKLOCKTIMEVERIFY OP_DROP OP_DUP OP_OUTPUTTOKENCATEGORY OP_ROT OP_EQUALVERIFY OP_DUP OP_OUTPUTTOKENAMOUNT OP_3 OP_ROLL OP_BIN2NUM OP_NUMEQUALVERIFY OP_DUP OP_OUTPUTBYTECODE OP_SHA256 OP_ROT OP_EQUALVERIFY OP_DUP OP_OUTPUTVALUE OP_SWAP OP_UTXOVALUE OP_GREATERTHANOREQUAL",
+  "source": "pragma cashscript ^0.14.0;\n\n// Mesh Blaze discrete per-tranche allocation vesting covenant.\n// Holds launch FT and BCH carrier for a committed allocation schedule.\n// Once unlockHeight is reached, tokens are permissionlessly released\n// to the pre-committed recipient script hash with carrier preserved.\ncontract MeshBlazeVestingV1(\n    bytes32 tokenCat,\n    bytes32 recipientScriptHash,\n    bytes8 tokenAmount,\n    bytes4 unlockHeight\n) {\n    function release() {\n        int i = this.activeInputIndex;\n\n        // Verify input matches contract tranche terms (FT only, no NFT capability)\n        require(tx.inputs[i].tokenCategory == tokenCat);\n        require(tx.inputs[i].tokenAmount == int(tokenAmount));\n\n        // Enforce locktime expiration by block height\n        require(tx.time >= int(unlockHeight));\n\n        // Corresponding output delivers tokens and carrier to committed recipient\n        require(tx.outputs[i].tokenCategory == tokenCat);\n        require(tx.outputs[i].tokenAmount == int(tokenAmount));\n        require(sha256(tx.outputs[i].lockingBytecode) == recipientScriptHash);\n\n        // Carrier satoshis cannot be siphoned for miner fees\n        require(tx.outputs[i].value >= tx.inputs[i].value);\n    }\n}\n",
+  "fingerprint": "7eb3955c4823034598b91f8230db43220caf8fa18bff9ba94515ef986ae977e4",
+  "debug": {
+    "bytecode": "c076ce52798876d05479819d547a81b17576d17b8876d3537a819d76cda87b8876cc7cc6a2",
+    "sourceMap": "14:16:14:37;17:26:17:27;:16::42:1;:46::54:0;;:8::56:1;18:26:18:27:0;:16::40:1;:48::59:0;;:44::60:1;:8::62;21:31:21:43:0;;:27::44:1;:8::46;;24:27:24:28:0;:16::43:1;:47::55:0;:8::57:1;25:27:25:28:0;:16::41:1;:49::60:0;;:45::61:1;:8::63;26:34:26:35:0;:23::52:1;:16::53;:57::76:0;:8::78:1;29:27:29:28:0;:16::35:1;:49::50:0;:39::57:1;:8::59",
+    "logs": [],
+    "requires": [
+      { "ip": 9, "line": 17 },
+      { "ip": 15, "line": 18 },
+      { "ip": 19, "line": 21 },
+      { "ip": 24, "line": 24 },
+      { "ip": 30, "line": 25 },
+      { "ip": 35, "line": 26 },
+      { "ip": 41, "line": 29 }
+    ]
+  },
+  "compiler": {
+    "name": "cashc",
+    "version": "0.14.0",
+    "options": {
+      "enforceFunctionParameterTypes": true,
+      "enforceLocktimeGuard": true
+    }
+  },
+  "updatedAt": "2026-11-19T18:36:49.434Z"
+}
