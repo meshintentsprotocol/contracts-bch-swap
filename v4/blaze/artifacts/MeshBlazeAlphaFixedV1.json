@@ -1,0 +1,86 @@
+{
+  "contractName": "MeshBlazeAlphaFixedV1",
+  "constructorInputs": [
+    { "name": "tokenCat", "type": "bytes32" },
+    { "name": "totalSaleTokens", "type": "bytes8" },
+    { "name": "quotePricePerToken", "type": "bytes8" },
+    { "name": "maxRaiseQuote", "type": "bytes8" },
+    { "name": "alphaStartHeight", "type": "bytes4" },
+    { "name": "alphaEndHeight", "type": "bytes4" },
+    { "name": "creatorScriptHash", "type": "bytes32" }
+  ],
+  "abi": [
+    {
+      "name": "deposit",
+      "inputs": [
+        { "name": "depositAmount", "type": "bytes8" }
+      ]
+    },
+    { "name": "settle", "inputs": [] },
+    {
+      "name": "claim",
+      "inputs": [
+        { "name": "depositAmount", "type": "bytes8" },
+        { "name": "participantScriptHash", "type": "bytes32" }
+      ]
+    }
+  ],
+  "bytecode": "OP_7 OP_PICK OP_0 OP_NUMEQUAL OP_IF OP_8 OP_ROLL OP_SIZE OP_8 OP_EQUALVERIFY OP_INPUTINDEX OP_DUP OP_0 OP_NUMEQUALVERIFY OP_DUP OP_UTXOTOKENCOMMITMENT OP_SIZE 11 OP_NUMEQUALVERIFY OP_DUP OP_1 OP_SPLIT OP_DROP 00 OP_EQUALVERIFY OP_7 OP_ROLL OP_BIN2NUM OP_CHECKLOCKTIMEVERIFY OP_DROP OP_DUP OP_1 OP_SPLIT OP_NIP OP_8 OP_SPLIT OP_DROP OP_BIN2NUM OP_SWAP OP_9 OP_SPLIT OP_NIP OP_BIN2NUM OP_DUP OP_6 OP_ROLL OP_BIN2NUM OP_LESSTHANOREQUAL OP_VERIFY OP_3 OP_ROLL OP_BIN2NUM OP_DUP OP_0 OP_GREATERTHAN OP_VERIFY OP_2 OP_PICK OP_OVER OP_ADD OP_7 OP_ROLL OP_BIN2NUM OP_LESSTHANOREQUAL OP_VERIFY OP_3 OP_PICK OP_OUTPUTBYTECODE OP_4 OP_PICK OP_UTXOBYTECODE OP_EQUALVERIFY OP_3 OP_PICK OP_OUTPUTTOKENCATEGORY OP_4 OP_PICK OP_UTXOTOKENCATEGORY OP_EQUALVERIFY OP_3 OP_PICK OP_OUTPUTTOKENAMOUNT OP_2 OP_PICK OP_NUMEQUALVERIFY OP_3 OP_PICK OP_OUTPUTTOKENCOMMITMENT 00 OP_4 OP_ROLL OP_3 OP_PICK OP_ADD OP_8 OP_NUM2BIN OP_CAT OP_3 OP_ROLL OP_8 OP_NUM2BIN OP_CAT OP_EQUALVERIFY OP_OVER OP_OUTPUTVALUE OP_ROT OP_UTXOVALUE OP_ROT OP_ADD OP_GREATERTHANOREQUAL OP_VERIFY OP_2DROP OP_2DROP OP_DROP OP_1 OP_ELSE OP_7 OP_PICK OP_1 OP_NUMEQUAL OP_IF OP_INPUTINDEX OP_DUP OP_0 OP_NUMEQUALVERIFY OP_DUP OP_UTXOTOKENCOMMITMENT OP_SIZE 11 OP_NUMEQUALVERIFY OP_DUP OP_1 OP_SPLIT OP_DROP 00 OP_EQUALVERIFY OP_7 OP_ROLL OP_BIN2NUM OP_CHECKLOCKTIMEVERIFY OP_DROP OP_DUP OP_1 OP_SPLIT OP_NIP OP_8 OP_SPLIT OP_DROP OP_BIN2NUM OP_SWAP OP_9 OP_SPLIT OP_NIP OP_BIN2NUM OP_2 OP_PICK OP_OUTPUTBYTECODE OP_3 OP_PICK OP_UTXOBYTECODE OP_EQUALVERIFY OP_2 OP_PICK OP_OUTPUTTOKENCATEGORY OP_3 OP_PICK OP_UTXOTOKENCATEGORY OP_EQUALVERIFY OP_2 OP_PICK OP_OUTPUTTOKENAMOUNT OP_OVER OP_NUMEQUALVERIFY OP_2 OP_PICK OP_OUTPUTTOKENCOMMITMENT OP_1 OP_3 OP_PICK OP_8 OP_NUM2BIN OP_CAT OP_ROT OP_8 OP_NUM2BIN OP_CAT OP_EQUALVERIFY OP_SWAP OP_OUTPUTVALUE e803 OP_GREATERTHANOREQUAL OP_VERIFY OP_1 OP_OUTPUTBYTECODE OP_SHA256 OP_7 OP_ROLL OP_EQUALVERIFY OP_1 OP_OUTPUTVALUE OP_LESSTHANOREQUAL OP_VERIFY OP_2DROP OP_2DROP OP_2DROP OP_1 OP_ELSE OP_7 OP_ROLL OP_2 OP_NUMEQUALVERIFY OP_7 OP_ROLL OP_SIZE OP_8 OP_EQUALVERIFY OP_8 OP_ROLL OP_SIZE 20 OP_EQUALVERIFY OP_INPUTINDEX OP_DUP OP_0 OP_NUMEQUALVERIFY OP_DUP OP_UTXOTOKENCOMMITMENT OP_SIZE 11 OP_NUMEQUALVERIFY OP_DUP OP_1 OP_SPLIT OP_DROP OP_1 OP_EQUALVERIFY OP_DUP OP_1 OP_SPLIT OP_NIP OP_8 OP_SPLIT OP_DROP OP_BIN2NUM OP_SWAP OP_9 OP_SPLIT OP_NIP OP_BIN2NUM OP_DUP OP_7 OP_ROLL OP_BIN2NUM OP_LESSTHANOREQUAL OP_VERIFY OP_4 OP_ROLL OP_BIN2NUM OP_DUP OP_0 OP_GREATERTHAN OP_OVER OP_4 OP_PICK OP_LESSTHANOREQUAL OP_BOOLAND OP_VERIFY 1027 OP_MUL OP_6 OP_ROLL OP_BIN2NUM OP_DIV OP_DUP OP_0 OP_GREATERTHAN OP_OVER OP_3 OP_PICK OP_LESSTHANOREQUAL OP_BOOLAND OP_VERIFY OP_3 OP_PICK OP_OUTPUTBYTECODE OP_4 OP_PICK OP_UTXOBYTECODE OP_EQUALVERIFY OP_3 OP_PICK OP_OUTPUTTOKENCATEGORY OP_4 OP_PICK OP_UTXOTOKENCATEGORY OP_EQUALVERIFY OP_3 OP_PICK OP_OUTPUTTOKENAMOUNT OP_2 OP_PICK OP_2 OP_PICK OP_SUB OP_NUMEQUALVERIFY OP_3 OP_PICK OP_OUTPUTTOKENCOMMITMENT OP_1 OP_4 OP_ROLL OP_8 OP_NUM2BIN OP_CAT OP_3 OP_ROLL OP_3 OP_PICK OP_SUB OP_8 OP_NUM2BIN OP_CAT OP_EQUALVERIFY OP_SWAP OP_OUTPUTVALUE e803 OP_GREATERTHANOREQUAL OP_VERIFY OP_1 OP_OUTPUTBYTECODE OP_SHA256 OP_ROT OP_EQUALVERIFY OP_1 OP_OUTPUTTOKENCATEGORY OP_ROT OP_EQUALVERIFY OP_1 OP_OUTPUTTOKENAMOUNT OP_NUMEQUALVERIFY OP_1 OP_OUTPUTVALUE e803 OP_GREATERTHANOREQUAL OP_VERIFY OP_2DROP OP_2DROP OP_1 OP_ENDIF OP_ENDIF",
+  "source": "pragma cashscript ^0.14.0;\n\n// Mesh Blaze Alpha Fixed-Allocation Covenant (Mode A).\n// Fixed-price token allocation settled before public DBC trading.\n//\n// State commitment (17 bytes):\n//   - stage: 1 byte (0 = OPEN, 1 = SETTLED, 2 = EXPIRED_REFUND)\n//   - collectedQuote: 8 bytes le\n//   - tokensRemaining: 8 bytes le\ncontract MeshBlazeAlphaFixedV1(\n    bytes32 tokenCat,\n    bytes8 totalSaleTokens,\n    bytes8 quotePricePerToken, // quote units per 1 token unit\n    bytes8 maxRaiseQuote,\n    bytes4 alphaStartHeight,\n    bytes4 alphaEndHeight,\n    bytes32 creatorScriptHash\n) {\n    // Participant deposits quote during the Alpha window\n    function deposit(bytes8 depositAmount) {\n        int i = this.activeInputIndex;\n        require(i == 0);\n        bytes inState = tx.inputs[i].nftCommitment;\n        require(inState.length == 17);\n        require(inState.split(1)[0] == 0x00); // OPEN\n\n        require(tx.time >= int(alphaStartHeight));\n\n        int collected = int(inState.split(1)[1].split(8)[0]);\n        int tokensLeft = int(inState.split(9)[1]);\n        require(tokensLeft <= int(totalSaleTokens));\n        int dep = int(depositAmount);\n        require(dep > 0);\n        require(collected + dep <= int(maxRaiseQuote));\n\n        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);\n        require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);\n        require(tx.outputs[i].tokenAmount == tokensLeft);\n        require(tx.outputs[i].nftCommitment == 0x00 + toPaddedBytes(collected + dep, 8) + toPaddedBytes(tokensLeft, 8));\n        require(tx.outputs[i].value >= tx.inputs[i].value + dep);\n    }\n\n    // Settle Alpha Mode A once window closes: creator receives collected quote\n    function settle() {\n        int i = this.activeInputIndex;\n        require(i == 0);\n        bytes inState = tx.inputs[i].nftCommitment;\n        require(inState.length == 17);\n        require(inState.split(1)[0] == 0x00); // OPEN\n\n        require(tx.time >= int(alphaEndHeight));\n\n        int collected = int(inState.split(1)[1].split(8)[0]);\n        int tokensLeft = int(inState.split(9)[1]);\n\n        // State moves to SETTLED (1)\n        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);\n        require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);\n        require(tx.outputs[i].tokenAmount == tokensLeft);\n        require(tx.outputs[i].nftCommitment == 0x01 + toPaddedBytes(collected, 8) + toPaddedBytes(tokensLeft, 8));\n        require(tx.outputs[i].value >= 1000); // Retains carrier\n\n        // Output 1 sends proceeds to creator\n        require(sha256(tx.outputs[1].lockingBytecode) == creatorScriptHash);\n        require(tx.outputs[1].value >= collected);\n    }\n\n    // Participant claims fixed-price tokens\n    function claim(bytes8 depositAmount, bytes32 participantScriptHash) {\n        int i = this.activeInputIndex;\n        require(i == 0);\n        bytes inState = tx.inputs[i].nftCommitment;\n        require(inState.length == 17);\n        require(inState.split(1)[0] == 0x01); // SETTLED\n\n        int collected = int(inState.split(1)[1].split(8)[0]);\n        int tokensLeft = int(inState.split(9)[1]);\n        require(tokensLeft <= int(totalSaleTokens));\n        int dep = int(depositAmount);\n        require(dep > 0 && dep <= collected);\n\n        int tokenPayout = (dep * 10000) / int(quotePricePerToken);\n        require(tokenPayout > 0 && tokenPayout <= tokensLeft);\n\n        // State decrements token balance\n        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);\n        require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);\n        require(tx.outputs[i].tokenAmount == tokensLeft - tokenPayout);\n        require(tx.outputs[i].nftCommitment == 0x01 + toPaddedBytes(collected, 8) + toPaddedBytes(tokensLeft - tokenPayout, 8));\n        require(tx.outputs[i].value >= 1000);\n\n        // Output 1 sends tokens to participant\n        require(sha256(tx.outputs[1].lockingBytecode) == participantScriptHash);\n        require(tx.outputs[1].tokenCategory == tokenCat);\n        require(tx.outputs[1].tokenAmount == tokenPayout);\n        require(tx.outputs[1].value >= 1000);\n    }\n}\n",
+  "fingerprint": "fce33aefd7b4a5b4304a3689a39d438e780c4652f1e6b030092d4a0447d3836b",
+  "debug": {
+    "bytecode": "5779009c63587a825888c076009d76cf8201119d76517f75010088577a81b17576517f77587f75817c597f778176567a81a169537a817600a06952797893577a81a1695379cd5479c7885379d15479ce885379d352799d5379d20100547a53799358807e537a58807e8878cc7bc67b93a2696d6d7551675779519c63c076009d76cf8201119d76517f75010088577a81b17576517f77587f75817c597f77815279cd5379c7885279d15379ce885279d3789d5279d251537958807e7b58807e887ccc02e803a26951cda8577a8851cca1696d6d6d5167577a529d577a825888587a82012088c076009d76cf8201119d76517f75518876517f77587f75817c597f778176577a81a169547a817600a0785479a19a6902102795567a81967600a0785379a19a695379cd5479c7885379d15479ce885379d352795279949d5379d251547a58807e537a53799458807e887ccc02e803a26951cda87b8851d17b8851d39d51cc02e803a2696d6d516868",
+    "sourceMap": "20:4:41:5;;;;;:21:20:41;;;;;21:16:21:37;22::22:17;:21::22;:8::24:1;23:34:23:35:0;:24::50:1;24:16:24:30;:34::36:0;:8::38:1;25:16:25:23:0;:30::31;:16::32:1;:::35;:39::43:0;:8::45:1;27:31:27:47:0;;:27::48:1;:8::50;;29:28:29:35:0;:42::43;:28::44:1;:::47;:54::55:0;:28::56:1;:::59;:24::60;30:29:30:36:0;:43::44;:29::45:1;:::48;:25::49;31:16:31:26:0;:34::49;;:30::50:1;:16;:8::52;32:22:32:35:0;;:18::36:1;33:16:33:19:0;:22::23;:16:::1;:8::25;34:16:34::0;;:28::31;:16:::1;:39::52:0;;:35::53:1;:16;:8::55;36:27:36:28:0;;:16::45:1;:59::60:0;;:49::77:1;:8::79;37:27:37:28:0;;:16::43:1;:57::58:0;;:47::73:1;:8::75;38:27:38:28:0;;:16::41:1;:45::55:0;;:8::57:1;39:27:39:28:0;;:16::43:1;:47::51:0;:68::77;;:80::83;;:68:::1;:85::86:0;:54::87:1;:47;:104::114:0;;:116::117;:90::118:1;:47;:8::120;40:27:40:28:0;:16::35:1;:49::50:0;:39::57:1;:60::63:0;:39:::1;:16;:8::65;20:43:41:5;;;;:4;44::66::0;;;;;45:16:45:37;46::46:17;:21::22;:8::24:1;47:34:47:35:0;:24::50:1;48:16:48:30;:34::36:0;:8::38:1;49:16:49:23:0;:30::31;:16::32:1;:::35;:39::43:0;:8::45:1;51:31:51::0;;:27::46:1;:8::48;;53:28:53:35:0;:42::43;:28::44:1;:::47;:54::55:0;:28::56:1;:::59;:24::60;54:29:54:36:0;:43::44;:29::45:1;:::48;:25::49;57:27:57:28:0;;:16::45:1;:59::60:0;;:49::77:1;:8::79;58:27:58:28:0;;:16::43:1;:57::58:0;;:47::73:1;:8::75;59:27:59:28:0;;:16::41:1;:45::55:0;:8::57:1;60:27:60:28:0;;:16::43:1;:47::51:0;:68::77;;:79::80;:54::81:1;:47;:98::108:0;:110::111;:84::112:1;:47;:8::114;61:27:61:28:0;:16::35:1;:39::43:0;:16:::1;:8::45;64:34:64:35:0;:23::52:1;:16::53;:57::74:0;;:8::76:1;65:27:65:28:0;:16::35:1;:::48;:8::50;44:22:66:5;;;;:4;69::97::0;;;;:19:69:39;;;;;:41::70;;;;;70:16:70:37;71::71:17;:21::22;:8::24:1;72:34:72:35:0;:24::50:1;73:16:73:30;:34::36:0;:8::38:1;74:16:74:23:0;:30::31;:16::32:1;:::35;:39::43:0;:8::45:1;76:28:76:35:0;:42::43;:28::44:1;:::47;:54::55:0;:28::56:1;:::59;:24::60;77:29:77:36:0;:43::44;:29::45:1;:::48;:25::49;78:16:78:26:0;:34::49;;:30::50:1;:16;:8::52;79:22:79:35:0;;:18::36:1;80:16:80:19:0;:22::23;:16:::1;:27::30:0;:34::43;;:27:::1;:16;:8::45;82:33:82:38:0;:27:::1;:46::64:0;;:42::65:1;:26;83:16:83:27:0;:30::31;:16:::1;:35::46:0;:50::60;;:35:::1;:16;:8::62;86:27:86:28:0;;:16::45:1;:59::60:0;;:49::77:1;:8::79;87:27:87:28:0;;:16::43:1;:57::58:0;;:47::73:1;:8::75;88:27:88:28:0;;:16::41:1;:45::55:0;;:58::69;;:45:::1;:8::71;89:27:89:28:0;;:16::43:1;:47::51:0;:68::77;;:79::80;:54::81:1;:47;:98::108:0;;:111::122;;:98:::1;:124::125:0;:84::126:1;:47;:8::128;90:27:90:28:0;:16::35:1;:39::43:0;:16:::1;:8::45;93:34:93:35:0;:23::52:1;:16::53;:57::78:0;:8::80:1;94:27:94:28:0;:16::43:1;:47::55:0;:8::57:1;95:27:95:28:0;:16::41:1;:8::58;96:27:96:28:0;:16::35:1;:39::43:0;:16:::1;:8::45;69:72:97:5;;;10:0:98:1;",
+    "logs": [],
+    "requires": [
+      { "ip": 20, "line": 22 },
+      { "ip": 25, "line": 24 },
+      { "ip": 31, "line": 25 },
+      { "ip": 35, "line": 27 },
+      { "ip": 55, "line": 31 },
+      { "ip": 62, "line": 33 },
+      { "ip": 71, "line": 34 },
+      { "ip": 78, "line": 36 },
+      { "ip": 85, "line": 37 },
+      { "ip": 91, "line": 38 },
+      { "ip": 109, "line": 39 },
+      { "ip": 117, "line": 40 },
+      { "ip": 131, "line": 46 },
+      { "ip": 136, "line": 48 },
+      { "ip": 142, "line": 49 },
+      { "ip": 146, "line": 51 },
+      { "ip": 167, "line": 57 },
+      { "ip": 174, "line": 58 },
+      { "ip": 179, "line": 59 },
+      { "ip": 193, "line": 60 },
+      { "ip": 198, "line": 61 },
+      { "ip": 204, "line": 64 },
+      { "ip": 208, "line": 65 },
+      { "ip": 231, "line": 71 },
+      { "ip": 236, "line": 73 },
+      { "ip": 242, "line": 74 },
+      { "ip": 261, "line": 78 },
+      { "ip": 273, "line": 80 },
+      { "ip": 288, "line": 83 },
+      { "ip": 295, "line": 86 },
+      { "ip": 302, "line": 87 },
+      { "ip": 311, "line": 88 },
+      { "ip": 329, "line": 89 },
+      { "ip": 334, "line": 90 },
+      { "ip": 339, "line": 93 },
+      { "ip": 343, "line": 94 },
+      { "ip": 346, "line": 95 },
+      { "ip": 351, "line": 96 }
+    ],
+    "sourceTags": "5:9:pv;211:215:pv;216:220:pv"
+  },
+  "compiler": {
+    "name": "cashc",
+    "version": "0.14.0",
+    "options": {
+      "enforceFunctionParameterTypes": true,
+      "enforceLocktimeGuard": true
+    }
+  },
+  "updatedAt": "2026-11-19T18:46:36.389Z"
+}

@@ -1,0 +1,126 @@
+pragma cashscript ^0.14.0;
+
+// Mesh Blaze Alpha Bounded Curve Buy Covenant (Mode B - Meteora style).
+// Pools quote during the pre-activation window, executes a single bounded buy
+// against the authentic DBC curve before public activation, and pro-rates
+// bought tokens and any unused quote to depositors.
+//
+// State commitment (25 bytes):
+//   - stage: 1 byte (0 = DEPOSIT, 1 = BOUGHT, 2 = EXPIRED_REFUND)
+//   - totalDeposited: 8 bytes le
+//   - totalTokensBought: 8 bytes le
+//   - unusedQuoteRefund: 8 bytes le
+contract MeshBlazeAlphaBuyV1(
+    bytes32 tokenCat,
+    bytes32 curveScriptHash,
+    bytes8 maxGrossQuote,
+    bytes8 minTokenOutput,
+    bytes4 alphaStartHeight,
+    bytes4 alphaEndHeight,
+    bytes4 expiryHeight
+) {
+    // Participant deposits quote into vault
+    function deposit(bytes8 depositAmount) {
+        int i = this.activeInputIndex;
+        require(i == 0);
+        bytes inState = tx.inputs[i].nftCommitment;
+        require(inState.length == 25);
+        require(inState.split(1)[0] == 0x00); // DEPOSIT
+
+        require(tx.time >= int(alphaStartHeight));
+
+        int deposited = int(inState.split(1)[1].split(8)[0]);
+        int dep = int(depositAmount);
+        require(dep > 0);
+        require(deposited + dep <= int(maxGrossQuote));
+
+        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+        require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
+        require(tx.outputs[i].nftCommitment == 0x00 + toPaddedBytes(deposited + dep, 8) + toPaddedBytes(0, 8) + toPaddedBytes(0, 8));
+        require(tx.outputs[i].value >= tx.inputs[i].value + dep);
+    }
+
+    // Vault executes bounded curve buy against the authentic DBC curve
+    // Input 0: Alpha Buy Vault (provides quote)
+    // Input 1: DBC Curve State (provides tokens)
+    function executeCurveBuy(bytes8 quoteToSpend) {
+        int i = this.activeInputIndex;
+        require(i == 0);
+        bytes inState = tx.inputs[i].nftCommitment;
+        require(inState.length == 25);
+        require(inState.split(1)[0] == 0x00); // DEPOSIT
+
+        require(tx.time >= int(alphaEndHeight));
+
+        int deposited = int(inState.split(1)[1].split(8)[0]);
+        int spend = int(quoteToSpend);
+        require(spend > 0 && spend <= deposited);
+
+        // Input 1 must be authentic DBC curve covenant
+        require(sha256(tx.inputs[1].lockingBytecode) == curveScriptHash);
+
+        // Output 0: Alpha Vault transitions to BOUGHT (1)
+        // Holds the bought tokens and any unspent quote
+        int unusedQuote = deposited - spend;
+        int tokensBought = tx.outputs[0].tokenAmount;
+        require(tokensBought >= int(minTokenOutput));
+        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+        require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
+        require(tx.outputs[i].nftCommitment == 0x01 + toPaddedBytes(deposited, 8) + toPaddedBytes(tokensBought, 8) + toPaddedBytes(unusedQuote, 8));
+        require(tx.outputs[i].value >= unusedQuote + 1000); // Holds unused quote + carrier
+    }
+
+    // Participant claims pro-rata tokens and pro-rata unused quote refund
+    function claim(bytes8 userDeposit, bytes32 participantScriptHash) {
+        int i = this.activeInputIndex;
+        require(i == 0);
+        bytes inState = tx.inputs[i].nftCommitment;
+        require(inState.length == 25);
+        require(inState.split(1)[0] == 0x01); // BOUGHT
+
+        int totalDep = int(inState.split(1)[1].split(8)[0]);
+        int totalBought = int(inState.split(9)[1].split(8)[0]);
+        int totalUnused = int(inState.split(17)[1]);
+        int uDep = int(userDeposit);
+        require(uDep > 0 && uDep <= totalDep);
+
+        int tokenShare = (uDep * totalBought) / totalDep;
+        int quoteShare = (uDep * totalUnused) / totalDep;
+
+        // Next vault state retains remaining tokens and quote
+        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+        require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
+        require(tx.outputs[i].tokenAmount == tx.inputs[i].tokenAmount - tokenShare);
+        require(tx.outputs[i].nftCommitment == 0x01 + toPaddedBytes(totalDep, 8) + toPaddedBytes(totalBought, 8) + toPaddedBytes(totalUnused, 8));
+        require(tx.outputs[i].value >= tx.inputs[i].value - quoteShare);
+
+        // Output 1: Sends token share and quote refund to participant
+        require(sha256(tx.outputs[1].lockingBytecode) == participantScriptHash);
+        require(tx.outputs[1].tokenCategory == tokenCat);
+        require(tx.outputs[1].tokenAmount == tokenShare);
+        require(tx.outputs[1].value >= quoteShare + 1000);
+    }
+
+    // 100% refund if curve buy did not execute before expiry
+    function refund(bytes8 userDeposit, bytes32 participantScriptHash) {
+        int i = this.activeInputIndex;
+        require(i == 0);
+        bytes inState = tx.inputs[i].nftCommitment;
+        require(inState.length == 25);
+        require(inState.split(1)[0] == 0x00); // Still in DEPOSIT stage
+
+        require(tx.time >= int(expiryHeight));
+
+        int uDep = int(userDeposit);
+        require(uDep > 0);
+
+        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+        require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
+        require(tx.outputs[i].nftCommitment == inState);
+        require(tx.outputs[i].value >= tx.inputs[i].value - uDep);
+
+        // Output 1 delivers 100% refund
+        require(sha256(tx.outputs[1].lockingBytecode) == participantScriptHash);
+        require(tx.outputs[1].value >= uDep);
+    }
+}

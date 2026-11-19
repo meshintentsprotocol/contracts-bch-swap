@@ -1,0 +1,98 @@
+pragma cashscript ^0.14.0;
+
+// Mesh Blaze Alpha Fixed-Allocation Covenant (Mode A).
+// Fixed-price token allocation settled before public DBC trading.
+//
+// State commitment (17 bytes):
+//   - stage: 1 byte (0 = OPEN, 1 = SETTLED, 2 = EXPIRED_REFUND)
+//   - collectedQuote: 8 bytes le
+//   - tokensRemaining: 8 bytes le
+contract MeshBlazeAlphaFixedV1(
+    bytes32 tokenCat,
+    bytes8 totalSaleTokens,
+    bytes8 quotePricePerToken, // quote units per 1 token unit
+    bytes8 maxRaiseQuote,
+    bytes4 alphaStartHeight,
+    bytes4 alphaEndHeight,
+    bytes32 creatorScriptHash
+) {
+    // Participant deposits quote during the Alpha window
+    function deposit(bytes8 depositAmount) {
+        int i = this.activeInputIndex;
+        require(i == 0);
+        bytes inState = tx.inputs[i].nftCommitment;
+        require(inState.length == 17);
+        require(inState.split(1)[0] == 0x00); // OPEN
+
+        require(tx.time >= int(alphaStartHeight));
+
+        int collected = int(inState.split(1)[1].split(8)[0]);
+        int tokensLeft = int(inState.split(9)[1]);
+        require(tokensLeft <= int(totalSaleTokens));
+        int dep = int(depositAmount);
+        require(dep > 0);
+        require(collected + dep <= int(maxRaiseQuote));
+
+        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+        require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
+        require(tx.outputs[i].tokenAmount == tokensLeft);
+        require(tx.outputs[i].nftCommitment == 0x00 + toPaddedBytes(collected + dep, 8) + toPaddedBytes(tokensLeft, 8));
+        require(tx.outputs[i].value >= tx.inputs[i].value + dep);
+    }
+
+    // Settle Alpha Mode A once window closes: creator receives collected quote
+    function settle() {
+        int i = this.activeInputIndex;
+        require(i == 0);
+        bytes inState = tx.inputs[i].nftCommitment;
+        require(inState.length == 17);
+        require(inState.split(1)[0] == 0x00); // OPEN
+
+        require(tx.time >= int(alphaEndHeight));
+
+        int collected = int(inState.split(1)[1].split(8)[0]);
+        int tokensLeft = int(inState.split(9)[1]);
+
+        // State moves to SETTLED (1)
+        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+        require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
+        require(tx.outputs[i].tokenAmount == tokensLeft);
+        require(tx.outputs[i].nftCommitment == 0x01 + toPaddedBytes(collected, 8) + toPaddedBytes(tokensLeft, 8));
+        require(tx.outputs[i].value >= 1000); // Retains carrier
+
+        // Output 1 sends proceeds to creator
+        require(sha256(tx.outputs[1].lockingBytecode) == creatorScriptHash);
+        require(tx.outputs[1].value >= collected);
+    }
+
+    // Participant claims fixed-price tokens
+    function claim(bytes8 depositAmount, bytes32 participantScriptHash) {
+        int i = this.activeInputIndex;
+        require(i == 0);
+        bytes inState = tx.inputs[i].nftCommitment;
+        require(inState.length == 17);
+        require(inState.split(1)[0] == 0x01); // SETTLED
+
+        int collected = int(inState.split(1)[1].split(8)[0]);
+        int tokensLeft = int(inState.split(9)[1]);
+        require(tokensLeft <= int(totalSaleTokens));
+        int dep = int(depositAmount);
+        require(dep > 0 && dep <= collected);
+
+        int tokenPayout = (dep * 10000) / int(quotePricePerToken);
+        require(tokenPayout > 0 && tokenPayout <= tokensLeft);
+
+        // State decrements token balance
+        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+        require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
+        require(tx.outputs[i].tokenAmount == tokensLeft - tokenPayout);
+        require(tx.outputs[i].nftCommitment == 0x01 + toPaddedBytes(collected, 8) + toPaddedBytes(tokensLeft - tokenPayout, 8));
+        require(tx.outputs[i].value >= 1000);
+
+        // Output 1 sends tokens to participant
+        require(sha256(tx.outputs[1].lockingBytecode) == participantScriptHash);
+        require(tx.outputs[1].tokenCategory == tokenCat);
+        require(tx.outputs[1].tokenAmount == tokenPayout);
+        require(tx.outputs[1].value >= 1000);
+    }
+}
