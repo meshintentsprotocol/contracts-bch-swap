@@ -1,0 +1,52 @@
+{
+  "contractName": "MeshBlazeBchFeeCollectorV1",
+  "constructorInputs": [
+    { "name": "recipientScriptHash", "type": "bytes32" },
+    { "name": "carrier", "type": "bytes8" }
+  ],
+  "abi": [
+    { "name": "accrue", "inputs": [] },
+    { "name": "claim", "inputs": [] }
+  ],
+  "bytecode": "OP_2 OP_PICK OP_0 OP_NUMEQUAL OP_IF OP_INPUTINDEX OP_2 OP_PICK OP_BIN2NUM e803 OP_GREATERTHANOREQUAL OP_VERIFY OP_DUP OP_UTXOTOKENCATEGORY OP_0 OP_EQUAL OP_OVER OP_UTXOTOKENCOMMITMENT OP_0 OP_EQUAL OP_BOOLAND OP_VERIFY OP_DUP OP_OUTPUTTOKENCATEGORY OP_0 OP_EQUAL OP_OVER OP_OUTPUTTOKENCOMMITMENT OP_0 OP_EQUAL OP_BOOLAND OP_VERIFY OP_DUP OP_OUTPUTBYTECODE OP_OVER OP_UTXOBYTECODE OP_EQUALVERIFY OP_DUP OP_UTXOVALUE OP_3 OP_ROLL OP_BIN2NUM OP_GREATERTHANOREQUAL OP_VERIFY OP_DUP OP_OUTPUTVALUE OP_SWAP OP_UTXOVALUE OP_GREATERTHANOREQUAL OP_NIP OP_NIP OP_ELSE OP_ROT OP_1 OP_NUMEQUALVERIFY OP_INPUTINDEX OP_0 OP_NUMEQUAL OP_TXINPUTCOUNT OP_2 OP_NUMEQUAL OP_BOOLAND OP_TXOUTPUTCOUNT OP_3 OP_NUMEQUAL OP_BOOLAND OP_VERIFY OP_OVER OP_BIN2NUM e803 OP_GREATERTHANOREQUAL OP_VERIFY OP_0 OP_UTXOTOKENCATEGORY OP_0 OP_EQUAL OP_0 OP_UTXOTOKENCOMMITMENT OP_0 OP_EQUAL OP_BOOLAND OP_VERIFY OP_1 OP_UTXOTOKENCATEGORY OP_0 OP_EQUAL OP_1 OP_UTXOTOKENCOMMITMENT OP_0 OP_EQUAL OP_BOOLAND OP_VERIFY OP_0 OP_OUTPUTTOKENCATEGORY OP_0 OP_EQUAL OP_0 OP_OUTPUTTOKENCOMMITMENT OP_0 OP_EQUAL OP_BOOLAND OP_VERIFY OP_1 OP_OUTPUTTOKENCATEGORY OP_0 OP_EQUAL OP_1 OP_OUTPUTTOKENCOMMITMENT OP_0 OP_EQUAL OP_BOOLAND OP_VERIFY OP_2 OP_OUTPUTTOKENCATEGORY OP_0 OP_EQUAL OP_2 OP_OUTPUTTOKENCOMMITMENT OP_0 OP_EQUAL OP_BOOLAND OP_VERIFY OP_0 OP_OUTPUTBYTECODE OP_0 OP_UTXOBYTECODE OP_EQUALVERIFY OP_0 OP_OUTPUTVALUE OP_2 OP_PICK OP_BIN2NUM OP_NUMEQUALVERIFY OP_0 OP_UTXOVALUE OP_ROT OP_BIN2NUM OP_SUB OP_DUP OP_0 OP_GREATERTHAN OP_VERIFY OP_1 OP_OUTPUTVALUE 2202 OP_GREATERTHANOREQUAL OP_1 OP_OUTPUTVALUE OP_2 OP_PICK OP_GREATERTHANOREQUAL OP_BOOLAND OP_VERIFY OP_1 OP_OUTPUTVALUE OP_SWAP OP_SUB OP_1 OP_OUTPUTBYTECODE OP_SHA256 OP_ROT OP_EQUALVERIFY OP_2 OP_OUTPUTBYTECODE OP_1 OP_UTXOBYTECODE OP_EQUALVERIFY OP_2 OP_OUTPUTVALUE 2202 OP_GREATERTHANOREQUAL OP_VERIFY OP_2 OP_OUTPUTVALUE OP_1 OP_UTXOVALUE OP_ROT OP_SUB 8813 OP_SUB OP_GREATERTHANOREQUAL OP_ENDIF",
+  "source": "pragma cashscript ^0.14.0;\n\n// BCH-only fee accumulator for one immutable recipient. Any trade may add BCH\n// at the same input/output index. Anyone may trigger a whole-balance claim to\n// the committed recipient once the accrued amount can form a standard output.\n// This covenant does not by itself require a market trade to pay a fee; the\n// paired market bin must enforce the collector deltas for every fill.\ncontract MeshBlazeBchFeeCollectorV1(bytes32 recipientScriptHash, bytes8 carrier) {\n    function accrue() {\n        int i = this.activeInputIndex;\n        require(int(carrier) >= 1000);\n        require(tx.inputs[i].tokenCategory == 0x && tx.inputs[i].nftCommitment == 0x);\n        require(tx.outputs[i].tokenCategory == 0x && tx.outputs[i].nftCommitment == 0x);\n        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);\n        require(tx.inputs[i].value >= int(carrier));\n        require(tx.outputs[i].value >= tx.inputs[i].value);\n    }\n\n    function claim() {\n        require(this.activeInputIndex == 0 && tx.inputs.length == 2 && tx.outputs.length == 3);\n        require(int(carrier) >= 1000);\n        require(tx.inputs[0].tokenCategory == 0x && tx.inputs[0].nftCommitment == 0x);\n        require(tx.inputs[1].tokenCategory == 0x && tx.inputs[1].nftCommitment == 0x);\n        require(tx.outputs[0].tokenCategory == 0x && tx.outputs[0].nftCommitment == 0x);\n        require(tx.outputs[1].tokenCategory == 0x && tx.outputs[1].nftCommitment == 0x);\n        require(tx.outputs[2].tokenCategory == 0x && tx.outputs[2].nftCommitment == 0x);\n        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);\n        require(tx.outputs[0].value == int(carrier));\n        int amount = tx.inputs[0].value - int(carrier);\n        require(amount > 0);\n        // The sponsor may add BCH to make a tiny final claim dust-safe.\n        // All accrued BCH still leaves the collector for the recipient.\n        require(tx.outputs[1].value >= 546 && tx.outputs[1].value >= amount);\n        int sponsorTopUp = tx.outputs[1].value - amount;\n        require(sha256(tx.outputs[1].lockingBytecode) == recipientScriptHash);\n        require(tx.outputs[2].lockingBytecode == tx.inputs[1].lockingBytecode);\n        require(tx.outputs[2].value >= 546);\n        require(tx.outputs[2].value >= tx.inputs[1].value - sponsorTopUp - 5000);\n    }\n}\n",
+  "fingerprint": "e9437f164f0356d8c5f6eeadf8dcc7a6db5195b7ccd54b17668276ffd33bea3a",
+  "debug": {
+    "bytecode": "5279009c63c052798102e803a26976ce008778cf00879a6976d1008778d200879a6976cd78c78876c6537a81a26976cc7cc6a27777677b519dc0009cc3529c9ac4539c9a69788102e803a26900ce008700cf00879a6951ce008751cf00879a6900d1008700d200879a6951d1008751d200879a6952d1008752d200879a6900cd00c78800cc5279819d00c67b81947600a06951cc022202a251cc5279a29a6951cc7c9451cda87b8852cd51c78852cc022202a26952cc51c67b9402881394a268",
+    "sourceMap": "9:4:17:5;;;;;10:16:10:37;11:20:11:27;;:16::28:1;:32::36:0;:16:::1;:8::38;12:26:12:27:0;:16::42:1;:46::48:0;:16:::1;:62::63:0;:52::78:1;:82::84:0;:52:::1;:16;:8::86;13:27:13:28:0;:16::43:1;:47::49:0;:16:::1;:64::65:0;:53::80:1;:84::86:0;:53:::1;:16;:8::88;14:27:14:28:0;:16::45:1;:59::60:0;:49::77:1;:8::79;15:26:15:27:0;:16::34:1;:42::49:0;;:38::50:1;:16;:8::52;16:27:16:28:0;:16::35:1;:49::50:0;:39::57:1;:8::59;9:22:17:5;;:4;19::39::0;;;20:16:20:37;:41::42;:16:::1;:46::62:0;:66::67;:46:::1;:16;:71::88:0;:92::93;:71:::1;:16;:8::95;21:20:21:27:0;:16::28:1;:32::36:0;:16:::1;:8::38;22:26:22:27:0;:16::42:1;:46::48:0;:16:::1;:62::63:0;:52::78:1;:82::84:0;:52:::1;:16;:8::86;23:26:23:27:0;:16::42:1;:46::48:0;:16:::1;:62::63:0;:52::78:1;:82::84:0;:52:::1;:16;:8::86;24:27:24:28:0;:16::43:1;:47::49:0;:16:::1;:64::65:0;:53::80:1;:84::86:0;:53:::1;:16;:8::88;25:27:25:28:0;:16::43:1;:47::49:0;:16:::1;:64::65:0;:53::80:1;:84::86:0;:53:::1;:16;:8::88;26:27:26:28:0;:16::43:1;:47::49:0;:16:::1;:64::65:0;:53::80:1;:84::86:0;:53:::1;:16;:8::88;27:27:27:28:0;:16::45:1;:59::60:0;:49::77:1;:8::79;28:27:28:28:0;:16::35:1;:43::50:0;;:39::51:1;:8::53;29:31:29:32:0;:21::39:1;:46::53:0;:42::54:1;:21;30:16:30:22:0;:25::26;:16:::1;:8::28;33:27:33::0;:16::35:1;:39::42:0;:16:::1;:57::58:0;:46::65:1;:69::75:0;;:46:::1;:16;:8::77;34:38:34:39:0;:27::46:1;:49::55:0;:27:::1;35:34:35:35:0;:23::52:1;:16::53;:57::76:0;:8::78:1;36:27:36:28:0;:16::45:1;:59::60:0;:49::77:1;:8::79;37:27:37:28:0;:16::35:1;:39::42:0;:16:::1;:8::44;38:27:38:28:0;:16::35:1;:49::50:0;:39::57:1;:60::72:0;:39:::1;:75::79:0;:39:::1;:8::81;8:0:40:1",
+    "logs": [],
+    "requires": [
+      { "ip": 13, "line": 11 },
+      { "ip": 23, "line": 12 },
+      { "ip": 33, "line": 13 },
+      { "ip": 38, "line": 14 },
+      { "ip": 45, "line": 15 },
+      { "ip": 51, "line": 16 },
+      { "ip": 68, "line": 20 },
+      { "ip": 73, "line": 21 },
+      { "ip": 83, "line": 22 },
+      { "ip": 93, "line": 23 },
+      { "ip": 103, "line": 24 },
+      { "ip": 113, "line": 25 },
+      { "ip": 123, "line": 26 },
+      { "ip": 128, "line": 27 },
+      { "ip": 134, "line": 28 },
+      { "ip": 143, "line": 30 },
+      { "ip": 154, "line": 33 },
+      { "ip": 163, "line": 35 },
+      { "ip": 168, "line": 36 },
+      { "ip": 173, "line": 37 },
+      { "ip": 183, "line": 38 }
+    ],
+    "sourceTags": "49:50:sc"
+  },
+  "compiler": {
+    "name": "cashc",
+    "version": "0.14.0",
+    "options": {
+      "enforceFunctionParameterTypes": true,
+      "enforceLocktimeGuard": true
+    }
+  },
+  "updatedAt": "2026-11-17T08:58:42.132Z"
+}

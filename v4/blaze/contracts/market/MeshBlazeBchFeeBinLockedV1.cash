@@ -1,0 +1,111 @@
+pragma cashscript ^0.14.0;
+
+// Locked BCH/token price bin paired with three BCH fee collectors. The fixed
+// layout makes each collector's obligation unique to this bin fill. No owner
+// or manager path exists. Single-bin trades only in this prototype.
+contract MeshBlazeBchFeeBinLockedV1(
+    bytes32 tokenCat,
+    bytes8 bidNum, bytes8 bidDen,
+    bytes8 askNum, bytes8 askDen,
+    bytes32 creatorCollectorHash,
+    bytes32 partnerCollectorHash,
+    bytes32 protocolCollectorHash,
+    bytes2 tradingFeeBps,
+    bytes2 creatorShareBps,
+    bytes2 partnerShareBps,
+    bytes2 protocolShareBps
+) {
+    // Inputs/outputs 0..3: bin + creator, partner and protocol collectors.
+    // Input 4: BCH buyer. Output 4: launch FT. Output 5: buyer BCH change.
+    function buy() {
+        require(this.activeInputIndex == 0 && tx.inputs.length == 5 && tx.outputs.length == 6);
+        require(tx.inputs[0].lockingBytecode == tx.outputs[0].lockingBytecode);
+        require(tx.inputs[0].tokenCategory == tokenCat && tx.outputs[0].tokenCategory == tokenCat);
+        require(tx.inputs[0].nftCommitment == 0x && tx.outputs[0].nftCommitment == 0x);
+        require(tx.inputs[0].value >= 1000 && tx.outputs[0].value >= 1000);
+        require(tx.inputs[4].tokenCategory == 0x && tx.inputs[4].nftCommitment == 0x);
+        require(tx.outputs[4].tokenCategory == tokenCat && tx.outputs[4].nftCommitment == 0x);
+        require(tx.outputs[5].tokenCategory == 0x && tx.outputs[5].nftCommitment == 0x);
+        require(tx.outputs[4].lockingBytecode == tx.inputs[4].lockingBytecode);
+        require(tx.outputs[5].lockingBytecode == tx.inputs[4].lockingBytecode);
+        require(tx.outputs[4].value >= 1000);
+
+        int baseOut = tx.inputs[0].tokenAmount - tx.outputs[0].tokenAmount;
+        require(baseOut > 0 && tx.outputs[4].tokenAmount == baseOut);
+        require(int(askNum) > 0 && int(askDen) > 0 && int(bidNum) > 0 && int(bidDen) > 0);
+        require(int(askNum) * int(bidDen) >= int(bidNum) * int(askDen));
+        int quote = (baseOut * int(askNum) + int(askDen) - 1) / int(askDen);
+        require(quote > 0);
+        int rate = int(tradingFeeBps);
+        int cShare = int(creatorShareBps);
+        int pShare = int(partnerShareBps);
+        int rShare = int(protocolShareBps);
+        require(rate > 0 && rate < 10000);
+        require(min(min(cShare, pShare), rShare) >= 0 && rShare > 0);
+        require(cShare + pShare + rShare <= 10000);
+        int totalFee = (quote * rate + 9999) / 10000;
+        int lpShare = 10000 - cShare - pShare - rShare;
+        int lpFee = totalFee * lpShare / 10000;
+        int cFee = totalFee * cShare / 10000;
+        int pFee = totalFee * pShare / 10000;
+        int rFee = totalFee - lpFee - cFee - pFee;
+        require(sha256(tx.inputs[1].lockingBytecode) == creatorCollectorHash);
+        require(sha256(tx.inputs[2].lockingBytecode) == partnerCollectorHash);
+        require(sha256(tx.inputs[3].lockingBytecode) == protocolCollectorHash);
+        require(tx.outputs[1].lockingBytecode == tx.inputs[1].lockingBytecode);
+        require(tx.outputs[2].lockingBytecode == tx.inputs[2].lockingBytecode);
+        require(tx.outputs[3].lockingBytecode == tx.inputs[3].lockingBytecode);
+        require(tx.outputs[1].value - tx.inputs[1].value == cFee);
+        require(tx.outputs[2].value - tx.inputs[2].value == pFee);
+        require(tx.outputs[3].value - tx.inputs[3].value == rFee);
+        int binBchIn = tx.outputs[0].value - tx.inputs[0].value;
+        require(binBchIn == quote + lpFee);
+        require(tx.outputs[5].value >= 546);
+        require(tx.outputs[5].value >= tx.inputs[4].value - binBchIn - cFee - pFee - rFee - tx.outputs[4].value - 5000);
+    }
+
+    // Input 4: seller launch FT. Output 4: BCH proceeds to seller.
+    function sell() {
+        require(this.activeInputIndex == 0 && tx.inputs.length == 5 && tx.outputs.length == 5);
+        require(tx.inputs[0].lockingBytecode == tx.outputs[0].lockingBytecode);
+        require(tx.inputs[0].tokenCategory == tokenCat && tx.outputs[0].tokenCategory == tokenCat);
+        require(tx.inputs[0].nftCommitment == 0x && tx.outputs[0].nftCommitment == 0x);
+        require(tx.inputs[0].value >= 1000 && tx.outputs[0].value >= 1000);
+        require(tx.inputs[4].tokenCategory == tokenCat && tx.inputs[4].nftCommitment == 0x);
+        require(tx.outputs[4].tokenCategory == 0x && tx.outputs[4].nftCommitment == 0x);
+        require(tx.outputs[4].lockingBytecode == tx.inputs[4].lockingBytecode);
+        int baseIn = tx.outputs[0].tokenAmount - tx.inputs[0].tokenAmount;
+        require(baseIn > 0 && tx.inputs[4].tokenAmount == baseIn);
+        require(int(askNum) > 0 && int(askDen) > 0 && int(bidNum) > 0 && int(bidDen) > 0);
+        require(int(askNum) * int(bidDen) >= int(bidNum) * int(askDen));
+        int quote = baseIn * int(bidNum) / int(bidDen);
+        require(quote > 0);
+        int rate = int(tradingFeeBps);
+        int cShare = int(creatorShareBps);
+        int pShare = int(partnerShareBps);
+        int rShare = int(protocolShareBps);
+        require(rate > 0 && rate < 10000);
+        require(min(min(cShare, pShare), rShare) >= 0 && rShare > 0);
+        require(cShare + pShare + rShare <= 10000);
+        int totalFee = (quote * rate + 9999) / 10000;
+        require(totalFee < quote);
+        int lpShare = 10000 - cShare - pShare - rShare;
+        int lpFee = totalFee * lpShare / 10000;
+        int cFee = totalFee * cShare / 10000;
+        int pFee = totalFee * pShare / 10000;
+        int rFee = totalFee - lpFee - cFee - pFee;
+        require(sha256(tx.inputs[1].lockingBytecode) == creatorCollectorHash);
+        require(sha256(tx.inputs[2].lockingBytecode) == partnerCollectorHash);
+        require(sha256(tx.inputs[3].lockingBytecode) == protocolCollectorHash);
+        require(tx.outputs[1].lockingBytecode == tx.inputs[1].lockingBytecode);
+        require(tx.outputs[2].lockingBytecode == tx.inputs[2].lockingBytecode);
+        require(tx.outputs[3].lockingBytecode == tx.inputs[3].lockingBytecode);
+        require(tx.outputs[1].value - tx.inputs[1].value == cFee);
+        require(tx.outputs[2].value - tx.inputs[2].value == pFee);
+        require(tx.outputs[3].value - tx.inputs[3].value == rFee);
+        int binBchOut = tx.inputs[0].value - tx.outputs[0].value;
+        require(binBchOut == quote - lpFee && binBchOut > cFee + pFee + rFee);
+        require(tx.outputs[4].value >= 546);
+        require(tx.outputs[4].value >= tx.inputs[4].value + binBchOut - cFee - pFee - rFee - 5000);
+    }
+}

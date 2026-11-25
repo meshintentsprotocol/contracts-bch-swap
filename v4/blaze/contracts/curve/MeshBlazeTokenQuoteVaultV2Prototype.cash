@@ -1,0 +1,290 @@
+pragma cashscript ^0.14.0;
+
+// Paired CashToken quote vault with a prototype terminal graduation path.
+// Market scripts are constructor-pinned, but market implementation and
+// terminal price-continuity bounds are separate release gates.
+contract MeshBlazeTokenQuoteVaultV2Prototype(
+    bytes32 launchCat,
+    bytes32 quoteCat,
+    bytes8 quoteCarrier,
+    bytes8 quoteThreshold,
+    bytes8 virtualBase,
+    bytes8 virtualQuote,
+    bytes8 baseCarrier,
+    bytes2 lockedBps,
+    bytes8 marketCarrier,
+    bytes8 collectorCarrier,
+    bytes32 lockedBaseHash,
+    bytes32 lockedQuoteHash,
+    bytes32 creatorBaseHash,
+    bytes32 creatorQuoteHash,
+    bytes32 archiveHash,
+    bytes32 creatorCollectorHash,
+    bytes32 partnerCollectorHash,
+    bytes32 protocolCollectorHash,
+    bytes8 marketBidNum,
+    bytes8 marketBidDen,
+    bytes8 marketAskNum,
+    bytes8 marketAskDen
+) {
+    function buy() {
+        require(this.activeInputIndex == 1);
+        require(tx.inputs.length == 3 && (tx.outputs.length == 3 || tx.outputs.length == 4));
+        require(launchCat != quoteCat && int(quoteCarrier) >= 1000);
+        require(tx.inputs[0].tokenCategory == launchCat + 0x01);
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+
+        bytes inState = tx.inputs[0].nftCommitment;
+        bytes outState = tx.outputs[0].nftCommitment;
+        require(inState.length == 34 && outState.length == 34);
+        require(inState.split(2)[0] == 0x0100);
+        require(outState.split(1)[0] == 0x01);
+        int q0 = int(inState.split(2)[1].split(8)[0]);
+        int c0 = int(inState.split(10)[1].split(8)[0]);
+        int p0 = int(inState.split(18)[1].split(8)[0]);
+        int r0 = int(inState.split(26)[1]);
+        int q1 = int(outState.split(2)[1].split(8)[0]);
+        int c1 = int(outState.split(10)[1].split(8)[0]);
+        int p1 = int(outState.split(18)[1].split(8)[0]);
+        int r1 = int(outState.split(26)[1]);
+        require(min(min(q0, c0), min(p0, r0)) >= 0);
+        require(min(min(q1, c1), min(p1, r1)) >= 0);
+        int held0 = q0 + c0 + p0 + r0;
+        int held1 = q1 + c1 + p1 + r1;
+        require(held1 > held0);
+
+        require(tx.inputs[1].value == int(quoteCarrier));
+        require(tx.outputs[1].value == tx.inputs[1].value);
+        require(tx.outputs[1].lockingBytecode == tx.inputs[1].lockingBytecode);
+        if (held0 == 0) {
+            require(tx.inputs[1].tokenAmount == 0);
+        } else {
+            require(tx.inputs[1].tokenCategory == quoteCat);
+            require(tx.inputs[1].tokenAmount == held0);
+        }
+        require(tx.outputs[1].tokenCategory == quoteCat);
+        require(tx.outputs[1].tokenAmount == held1);
+
+        require(tx.inputs[2].tokenCategory == quoteCat);
+        require(tx.inputs[2].tokenAmount >= held1 - held0);
+        require(tx.outputs[2].tokenCategory == launchCat);
+        require(tx.outputs[2].tokenAmount == tx.inputs[0].tokenAmount - tx.outputs[0].tokenAmount);
+        require(tx.outputs[2].lockingBytecode == tx.inputs[2].lockingBytecode);
+        require(tx.outputs[2].value >= 1000);
+        if (tx.inputs[2].tokenAmount == held1 - held0) {
+            require(tx.outputs.length == 3);
+            require(tx.outputs[2].value >= tx.inputs[2].value - 10000);
+        } else {
+            require(tx.outputs.length == 4);
+            require(tx.outputs[3].tokenCategory == quoteCat);
+            require(tx.outputs[3].tokenAmount == tx.inputs[2].tokenAmount - (held1 - held0));
+            require(tx.outputs[3].lockingBytecode == tx.inputs[2].lockingBytecode);
+            require(tx.outputs[3].value >= 1000);
+            require(tx.outputs[2].value + tx.outputs[3].value >= tx.inputs[2].value - 10000);
+        }
+    }
+
+    function sell() {
+        require(this.activeInputIndex == 1);
+        require(tx.inputs.length == 3 && tx.outputs.length == 3);
+        require(tx.inputs[0].tokenCategory == launchCat + 0x01);
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+        bytes inState = tx.inputs[0].nftCommitment;
+        bytes outState = tx.outputs[0].nftCommitment;
+        require(inState.length == 34 && outState.length == 34);
+        require(inState.split(2)[0] == 0x0100 && outState.split(2)[0] == 0x0100);
+        int q0 = int(inState.split(2)[1].split(8)[0]);
+        int c0 = int(inState.split(10)[1].split(8)[0]);
+        int p0 = int(inState.split(18)[1].split(8)[0]);
+        int r0 = int(inState.split(26)[1]);
+        int q1 = int(outState.split(2)[1].split(8)[0]);
+        int c1 = int(outState.split(10)[1].split(8)[0]);
+        int p1 = int(outState.split(18)[1].split(8)[0]);
+        int r1 = int(outState.split(26)[1]);
+        require(min(min(q0, c0), min(p0, r0)) >= 0);
+        require(min(min(q1, c1), min(p1, r1)) >= 0);
+        require(q0 > q1 && q1 >= 0);
+        int held0 = q0 + c0 + p0 + r0;
+        int held1 = q1 + c1 + p1 + r1;
+        require(held0 > held1 && held1 >= 0);
+        require(tx.inputs[1].value == int(quoteCarrier) && tx.outputs[1].value == tx.inputs[1].value);
+        require(tx.outputs[1].lockingBytecode == tx.inputs[1].lockingBytecode);
+        require(tx.inputs[1].tokenCategory == quoteCat && tx.inputs[1].tokenAmount == held0);
+        require(tx.outputs[1].tokenAmount == held1);
+        if (held1 > 0) require(tx.outputs[1].tokenCategory == quoteCat);
+        require(tx.inputs[2].tokenCategory == launchCat);
+        require(tx.inputs[2].tokenAmount == tx.outputs[0].tokenAmount - tx.inputs[0].tokenAmount);
+        require(tx.outputs[2].tokenCategory == quoteCat);
+        require(tx.outputs[2].tokenAmount == held0 - held1);
+        require(tx.outputs[2].lockingBytecode == tx.inputs[2].lockingBytecode);
+        require(tx.outputs[2].value >= 1000 && tx.outputs[2].value >= tx.inputs[2].value - 10000);
+    }
+
+    function claim(int role) {
+        require(this.activeInputIndex == 1);
+        require(tx.inputs.length == 3 && tx.outputs.length == 4);
+        require(tx.inputs[0].tokenCategory == launchCat + 0x01);
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+        require(tx.outputs[0].tokenAmount == tx.inputs[0].tokenAmount);
+        bytes inState = tx.inputs[0].nftCommitment;
+        bytes outState = tx.outputs[0].nftCommitment;
+        require(inState.length == 34 && outState.length == 34);
+        require(inState.split(2)[0] == outState.split(2)[0]);
+        require(inState.split(1)[0] == 0x01);
+        int q0 = int(inState.split(2)[1].split(8)[0]);
+        int c0 = int(inState.split(10)[1].split(8)[0]);
+        int p0 = int(inState.split(18)[1].split(8)[0]);
+        int r0 = int(inState.split(26)[1]);
+        int q1 = int(outState.split(2)[1].split(8)[0]);
+        int c1 = int(outState.split(10)[1].split(8)[0]);
+        int p1 = int(outState.split(18)[1].split(8)[0]);
+        int r1 = int(outState.split(26)[1]);
+        require(min(min(q0, c0), min(p0, r0)) >= 0);
+        require(min(min(q1, c1), min(p1, r1)) >= 0);
+        require(q0 == q1);
+        int amount = 0;
+        if (role == 0) {
+            amount = c0;
+            require(c1 == 0 && p1 == p0 && r1 == r0);
+        } else if (role == 1) {
+            amount = p0;
+            require(c1 == c0 && p1 == 0 && r1 == r0);
+        } else {
+            require(role == 2);
+            amount = r0;
+            require(c1 == c0 && p1 == p0 && r1 == 0);
+        }
+        require(amount > 0);
+        int held0 = q0 + c0 + p0 + r0;
+        int held1 = q1 + c1 + p1 + r1;
+        require(tx.inputs[1].value == int(quoteCarrier) && tx.outputs[1].value == tx.inputs[1].value);
+        require(tx.outputs[1].lockingBytecode == tx.inputs[1].lockingBytecode);
+        require(tx.inputs[1].tokenCategory == quoteCat && tx.inputs[1].tokenAmount == held0);
+        require(tx.outputs[1].tokenAmount == held1);
+        if (held1 > 0) require(tx.outputs[1].tokenCategory == quoteCat);
+        require(held0 - held1 == amount);
+        require(tx.outputs[2].tokenCategory == quoteCat && tx.outputs[2].tokenAmount == amount);
+        require(tx.outputs[2].value >= 1000);
+        require(tx.outputs[3].lockingBytecode == tx.inputs[2].lockingBytecode);
+        require(tx.outputs[3].value >= 546);
+        require(tx.outputs[2].value + tx.outputs[3].value >= tx.inputs[2].value - 10000);
+    }
+
+    function graduate() {
+        require(this.activeInputIndex == 1 && tx.inputs.length == 3 && tx.outputs.length == 9);
+        require(launchCat != quoteCat);
+        require(int(lockedBps) >= 9000 && int(lockedBps) < 10000);
+        require(int(marketCarrier) >= 1000 && int(collectorCarrier) >= 1000);
+        require(tx.inputs[0].tokenCategory == launchCat + 0x01);
+        require(tx.inputs[0].value == int(baseCarrier));
+        bytes state = tx.inputs[0].nftCommitment;
+        require(state.length == 34 && state.split(2)[0] == 0x0101);
+        int quote = int(state.split(2)[1].split(8)[0]);
+        require(quote == int(quoteThreshold) && quote > 0);
+        require(int(state.split(10)[1].split(8)[0]) == 0);
+        require(int(state.split(18)[1].split(8)[0]) == 0);
+        require(int(state.split(26)[1]) == 0);
+        require(tx.inputs[1].tokenCategory == quoteCat && tx.inputs[1].tokenAmount == quote);
+        require(tx.inputs[1].nftCommitment == 0x && tx.inputs[1].value == int(quoteCarrier));
+        require(tx.inputs[2].tokenCategory == 0x && tx.inputs[2].nftCommitment == 0x);
+        int base = tx.inputs[0].tokenAmount;
+        require(base > 0);
+        int spotNum = int(virtualQuote) + quote;
+        int spotDen = int(virtualBase) + base;
+        int bid = int(marketBidNum) * spotDen;
+        int ask = int(marketAskNum) * spotDen;
+        int bidSpot = spotNum * int(marketBidDen);
+        int askSpot = spotNum * int(marketAskDen);
+        require(min(min(int(marketBidNum), int(marketBidDen)),
+                    min(int(marketAskNum), int(marketAskDen))) > 0);
+        require(bid <= bidSpot && ask >= askSpot);
+        require(bid * 10000 >= bidSpot * 9000 && ask * 10000 <= askSpot * 11000);
+        int lock = int(lockedBps);
+        int baseWhole = base / 10000;
+        int baseRem = base - baseWhole * 10000;
+        int quoteWhole = quote / 10000;
+        int quoteRem = quote - quoteWhole * 10000;
+        int minLockedBase = baseWhole * lock + (baseRem * lock + 9999) / 10000;
+        int minLockedQuote = quoteWhole * lock + (quoteRem * lock + 9999) / 10000;
+        require(sha256(tx.outputs[0].lockingBytecode) == lockedBaseHash);
+        require(sha256(tx.outputs[1].lockingBytecode) == lockedQuoteHash);
+        require(sha256(tx.outputs[2].lockingBytecode) == creatorBaseHash);
+        require(sha256(tx.outputs[3].lockingBytecode) == creatorQuoteHash);
+        require(tx.outputs[0].tokenCategory == launchCat && tx.outputs[1].tokenCategory == quoteCat);
+        require(tx.outputs[2].tokenCategory == launchCat && tx.outputs[3].tokenCategory == quoteCat);
+        require(tx.outputs[0].nftCommitment == 0x && tx.outputs[1].nftCommitment == 0x);
+        require(tx.outputs[2].nftCommitment == 0x && tx.outputs[3].nftCommitment == 0x);
+        require(tx.outputs[0].tokenAmount == minLockedBase && tx.outputs[2].tokenAmount == base - minLockedBase);
+        require(tx.outputs[1].tokenAmount == minLockedQuote && tx.outputs[3].tokenAmount == quote - minLockedQuote);
+        require(tx.outputs[2].tokenAmount > 0 && tx.outputs[3].tokenAmount > 0);
+        require(tx.outputs[0].value == int(marketCarrier) && tx.outputs[1].value == int(marketCarrier));
+        require(tx.outputs[2].value == int(marketCarrier) && tx.outputs[3].value == int(marketCarrier));
+        require(sha256(tx.outputs[4].lockingBytecode) == archiveHash);
+        require(tx.outputs[4].tokenCategory == launchCat + 0x01);
+        require(tx.outputs[4].tokenAmount == 0 && tx.outputs[4].nftCommitment == state);
+        require(tx.outputs[4].value == int(baseCarrier));
+        require(sha256(tx.outputs[5].lockingBytecode) == creatorCollectorHash);
+        require(sha256(tx.outputs[6].lockingBytecode) == partnerCollectorHash);
+        require(sha256(tx.outputs[7].lockingBytecode) == protocolCollectorHash);
+        require(tx.outputs[5].tokenCategory == 0x && tx.outputs[6].tokenCategory == 0x);
+        require(tx.outputs[7].tokenCategory == 0x && tx.outputs[8].tokenCategory == 0x);
+        require(tx.outputs[5].value == int(collectorCarrier) && tx.outputs[6].value == int(collectorCarrier));
+        require(tx.outputs[7].value == int(collectorCarrier));
+        require(tx.outputs[8].lockingBytecode == tx.inputs[2].lockingBytecode);
+        int available = tx.inputs[2].value + int(quoteCarrier) - 4 * int(marketCarrier) - 3 * int(collectorCarrier);
+        require(tx.outputs[8].value >= 546 && tx.outputs[8].value < available);
+        require(tx.outputs[8].value >= available - 10000);
+    }
+
+    function graduateAll() {
+        require(this.activeInputIndex == 1 && tx.inputs.length == 3 && tx.outputs.length == 7);
+        require(launchCat != quoteCat);
+        require(int(lockedBps) == 10000 && int(marketCarrier) >= 1000 && int(collectorCarrier) >= 1000);
+        require(tx.inputs[0].tokenCategory == launchCat + 0x01 && tx.inputs[0].value == int(baseCarrier));
+        bytes state = tx.inputs[0].nftCommitment;
+        require(state.length == 34 && state.split(2)[0] == 0x0101);
+        int quote = int(state.split(2)[1].split(8)[0]);
+        require(quote == int(quoteThreshold) && quote > 0);
+        require(int(state.split(10)[1].split(8)[0]) == 0);
+        require(int(state.split(18)[1].split(8)[0]) == 0);
+        require(int(state.split(26)[1]) == 0);
+        require(tx.inputs[1].tokenCategory == quoteCat && tx.inputs[1].tokenAmount == quote);
+        require(tx.inputs[1].nftCommitment == 0x && tx.inputs[1].value == int(quoteCarrier));
+        require(tx.inputs[2].tokenCategory == 0x && tx.inputs[2].nftCommitment == 0x);
+        require(tx.inputs[0].tokenAmount > 0);
+        int spotNum = int(virtualQuote) + quote;
+        int spotDen = int(virtualBase) + tx.inputs[0].tokenAmount;
+        int bid = int(marketBidNum) * spotDen;
+        int ask = int(marketAskNum) * spotDen;
+        int bidSpot = spotNum * int(marketBidDen);
+        int askSpot = spotNum * int(marketAskDen);
+        require(min(min(int(marketBidNum), int(marketBidDen)),
+                    min(int(marketAskNum), int(marketAskDen))) > 0);
+        require(bid <= bidSpot && ask >= askSpot);
+        require(bid * 10000 >= bidSpot * 9000 && ask * 10000 <= askSpot * 11000);
+        require(sha256(tx.outputs[0].lockingBytecode) == lockedBaseHash);
+        require(sha256(tx.outputs[1].lockingBytecode) == lockedQuoteHash);
+        require(tx.outputs[0].tokenCategory == launchCat && tx.outputs[1].tokenCategory == quoteCat);
+        require(tx.outputs[0].nftCommitment == 0x && tx.outputs[1].nftCommitment == 0x);
+        require(tx.outputs[0].tokenAmount == tx.inputs[0].tokenAmount);
+        require(tx.outputs[1].tokenAmount == quote);
+        require(tx.outputs[0].value == int(marketCarrier) && tx.outputs[1].value == int(marketCarrier));
+        require(sha256(tx.outputs[2].lockingBytecode) == archiveHash);
+        require(tx.outputs[2].tokenCategory == launchCat + 0x01 && tx.outputs[2].tokenAmount == 0);
+        require(tx.outputs[2].nftCommitment == state && tx.outputs[2].value == int(baseCarrier));
+        require(sha256(tx.outputs[3].lockingBytecode) == creatorCollectorHash);
+        require(sha256(tx.outputs[4].lockingBytecode) == partnerCollectorHash);
+        require(sha256(tx.outputs[5].lockingBytecode) == protocolCollectorHash);
+        require(tx.outputs[3].tokenCategory == 0x && tx.outputs[4].tokenCategory == 0x);
+        require(tx.outputs[5].tokenCategory == 0x && tx.outputs[6].tokenCategory == 0x);
+        require(tx.outputs[3].value == int(collectorCarrier) && tx.outputs[4].value == int(collectorCarrier));
+        require(tx.outputs[5].value == int(collectorCarrier));
+        require(tx.outputs[6].lockingBytecode == tx.inputs[2].lockingBytecode);
+        int available = tx.inputs[2].value + int(quoteCarrier) - 2 * int(marketCarrier) - 3 * int(collectorCarrier);
+        require(tx.outputs[6].value >= 546 && tx.outputs[6].value < available);
+        require(tx.outputs[6].value >= available - 10000);
+    }
+}

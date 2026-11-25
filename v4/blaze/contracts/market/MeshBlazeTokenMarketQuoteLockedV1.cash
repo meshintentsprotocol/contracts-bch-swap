@@ -1,0 +1,116 @@
+pragma cashscript ^0.14.0;
+
+// No-owner quote side of a fixed-price CashToken/CashToken market bin.
+// The base side pins this script; 2..4 are quote-token collectors.
+// No principal exit method exists. Buy/sell must spend both bin UTXOs.
+contract MeshBlazeTokenMarketQuoteLockedV1(
+    bytes32 baseCat, bytes32 quoteCat,
+    bytes8 bidNum, bytes8 bidDen, bytes8 askNum, bytes8 askDen,
+    bytes8 baseCarrier, bytes8 quoteCarrier, bytes8 collectorCarrier,
+    bytes32 creatorCollectorHash, bytes32 partnerCollectorHash, bytes32 protocolCollectorHash,
+    bytes2 tradingFeeBps, bytes2 creatorShareBps, bytes2 partnerShareBps, bytes2 protocolShareBps
+) {
+    function buy() {
+        require(this.activeInputIndex == 1 && tx.inputs.length == 6 && tx.outputs.length == 6);
+        require(baseCat != quoteCat && int(baseCarrier) >= 1000 && int(quoteCarrier) >= 1000);
+        require(tx.inputs[0].tokenCategory == baseCat && tx.outputs[0].tokenCategory == baseCat);
+        require(tx.inputs[0].nftCommitment == 0x && tx.outputs[0].nftCommitment == 0x);
+        require(tx.inputs[0].value == int(baseCarrier) && tx.outputs[0].value == int(baseCarrier));
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+        require(tx.outputs[1].lockingBytecode == tx.inputs[1].lockingBytecode);
+        require(tx.inputs[1].tokenCategory == quoteCat && tx.outputs[1].tokenCategory == quoteCat);
+        require(tx.inputs[1].nftCommitment == 0x && tx.outputs[1].nftCommitment == 0x);
+        require(tx.inputs[1].value == int(quoteCarrier) && tx.outputs[1].value == int(quoteCarrier));
+        require(tx.inputs[5].tokenCategory == quoteCat && tx.inputs[5].nftCommitment == 0x);
+        require(tx.outputs[5].tokenCategory == baseCat && tx.outputs[5].nftCommitment == 0x);
+        require(tx.outputs[5].lockingBytecode == tx.inputs[5].lockingBytecode);
+        require(tx.outputs[5].value >= 1000 && tx.outputs[5].value >= tx.inputs[5].value - 5000);
+        int baseOut = tx.inputs[0].tokenAmount - tx.outputs[0].tokenAmount;
+        require(baseOut > 0 && tx.outputs[0].tokenAmount > 0 && tx.outputs[5].tokenAmount == baseOut);
+        require(int(askNum) > 0 && int(askDen) > 0 && int(bidNum) > 0 && int(bidDen) > 0);
+        require(int(askNum) * int(bidDen) >= int(bidNum) * int(askDen));
+        int price = (baseOut * int(askNum) + int(askDen) - 1) / int(askDen);
+        require(price > 0);
+        int rate = int(tradingFeeBps);
+        int cShare = int(creatorShareBps);
+        int pShare = int(partnerShareBps);
+        int rShare = int(protocolShareBps);
+        require(rate > 0 && rate < 10000 && min(min(cShare, pShare), rShare) >= 0);
+        require(cShare + pShare + rShare <= 10000 && rShare > 0);
+        int fee = (price * rate + 9999) / 10000;
+        int lpFee = fee * (10000 - cShare - pShare - rShare) / 10000;
+        int cFee = fee * cShare / 10000;
+        int pFee = fee * pShare / 10000;
+        int rFee = fee - lpFee - cFee - pFee;
+        require(tx.inputs[5].tokenAmount == price + fee);
+        require(tx.outputs[1].tokenAmount - tx.inputs[1].tokenAmount == price + lpFee);
+        require(sha256(tx.inputs[2].lockingBytecode) == creatorCollectorHash);
+        require(sha256(tx.inputs[3].lockingBytecode) == partnerCollectorHash);
+        require(sha256(tx.inputs[4].lockingBytecode) == protocolCollectorHash);
+        require(tx.outputs[2].tokenAmount - tx.inputs[2].tokenAmount == cFee);
+        require(tx.outputs[3].tokenAmount - tx.inputs[3].tokenAmount == pFee);
+        require(tx.outputs[4].tokenAmount - tx.inputs[4].tokenAmount == rFee);
+        for (int i = 2; i < 5; i++) {
+            require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+            require(tx.inputs[i].value == int(collectorCarrier) && tx.outputs[i].value == int(collectorCarrier));
+            require(tx.inputs[i].nftCommitment == 0x && tx.outputs[i].nftCommitment == 0x);
+            if (tx.inputs[i].tokenAmount == 0) require(tx.inputs[i].tokenCategory == 0x);
+            else require(tx.inputs[i].tokenCategory == quoteCat);
+            if (tx.outputs[i].tokenAmount == 0) require(tx.outputs[i].tokenCategory == 0x);
+            else require(tx.outputs[i].tokenCategory == quoteCat);
+        }
+    }
+
+    function sell() {
+        require(this.activeInputIndex == 1 && tx.inputs.length == 6 && tx.outputs.length == 6);
+        require(baseCat != quoteCat && int(baseCarrier) >= 1000 && int(quoteCarrier) >= 1000);
+        require(tx.inputs[0].tokenCategory == baseCat && tx.outputs[0].tokenCategory == baseCat);
+        require(tx.inputs[0].nftCommitment == 0x && tx.outputs[0].nftCommitment == 0x);
+        require(tx.inputs[0].value == int(baseCarrier) && tx.outputs[0].value == int(baseCarrier));
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+        require(tx.outputs[1].lockingBytecode == tx.inputs[1].lockingBytecode);
+        require(tx.inputs[1].tokenCategory == quoteCat && tx.outputs[1].tokenCategory == quoteCat);
+        require(tx.inputs[1].nftCommitment == 0x && tx.outputs[1].nftCommitment == 0x);
+        require(tx.inputs[1].value == int(quoteCarrier) && tx.outputs[1].value == int(quoteCarrier));
+        require(tx.inputs[5].tokenCategory == baseCat && tx.inputs[5].nftCommitment == 0x);
+        require(tx.outputs[5].tokenCategory == quoteCat && tx.outputs[5].nftCommitment == 0x);
+        require(tx.outputs[5].lockingBytecode == tx.inputs[5].lockingBytecode);
+        require(tx.outputs[5].value >= 1000 && tx.outputs[5].value >= tx.inputs[5].value - 5000);
+        int baseIn = tx.outputs[0].tokenAmount - tx.inputs[0].tokenAmount;
+        require(baseIn > 0 && tx.inputs[5].tokenAmount == baseIn);
+        require(int(askNum) > 0 && int(askDen) > 0 && int(bidNum) > 0 && int(bidDen) > 0);
+        require(int(askNum) * int(bidDen) >= int(bidNum) * int(askDen));
+        int price = baseIn * int(bidNum) / int(bidDen);
+        require(price > 0);
+        int rate = int(tradingFeeBps);
+        int cShare = int(creatorShareBps);
+        int pShare = int(partnerShareBps);
+        int rShare = int(protocolShareBps);
+        require(rate > 0 && rate < 10000 && min(min(cShare, pShare), rShare) >= 0);
+        require(cShare + pShare + rShare <= 10000 && rShare > 0);
+        int fee = (price * rate + 9999) / 10000;
+        require(fee < price);
+        int lpFee = fee * (10000 - cShare - pShare - rShare) / 10000;
+        int cFee = fee * cShare / 10000;
+        int pFee = fee * pShare / 10000;
+        int rFee = fee - lpFee - cFee - pFee;
+        require(tx.outputs[5].tokenAmount == price - fee);
+        require(tx.outputs[1].tokenAmount > 0);
+        require(tx.inputs[1].tokenAmount - tx.outputs[1].tokenAmount == price - lpFee);
+        require(sha256(tx.inputs[2].lockingBytecode) == creatorCollectorHash);
+        require(sha256(tx.inputs[3].lockingBytecode) == partnerCollectorHash);
+        require(sha256(tx.inputs[4].lockingBytecode) == protocolCollectorHash);
+        require(tx.outputs[2].tokenAmount - tx.inputs[2].tokenAmount == cFee);
+        require(tx.outputs[3].tokenAmount - tx.inputs[3].tokenAmount == pFee);
+        require(tx.outputs[4].tokenAmount - tx.inputs[4].tokenAmount == rFee);
+        for (int i = 2; i < 5; i++) {
+            require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+            require(tx.inputs[i].value == int(collectorCarrier) && tx.outputs[i].value == int(collectorCarrier));
+            require(tx.inputs[i].nftCommitment == 0x && tx.outputs[i].nftCommitment == 0x);
+            if (tx.inputs[i].tokenAmount == 0) require(tx.inputs[i].tokenCategory == 0x);
+            else require(tx.inputs[i].tokenCategory == quoteCat);
+            if (tx.outputs[i].tokenAmount == 0) require(tx.outputs[i].tokenCategory == 0x);
+            else require(tx.outputs[i].tokenCategory == quoteCat);
+        }
+    }
+}

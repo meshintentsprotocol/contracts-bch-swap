@@ -1,0 +1,218 @@
+pragma cashscript ^0.14.0;
+
+// Mesh Blaze CashToken-quote base vault prototype. Its unique launch-category
+// mutable NFT is the paired-state anchor. The quote vault at input/output 1
+// must spend atomically under the constructor-pinned P2SH32 script.
+// Buy only: sell, claims and graduation are required before public use.
+contract MeshBlazeTokenBaseVaultV1(
+    bytes32 launchCat,
+    bytes32 quoteCat,
+    bytes32 quoteVaultHash,
+    bytes8 virtualBase,
+    bytes8 virtualQuote,
+    bytes8 quoteThreshold,
+    bytes8 baseCarrier,
+    bytes2 creatorFeeBps,
+    bytes2 partnerFeeBps,
+    bytes2 protocolFeeBps,
+    bytes32 creatorRecipientHash,
+    bytes32 partnerRecipientHash,
+    bytes32 protocolRecipientHash
+) {
+    function buy() {
+        require(this.activeInputIndex == 0);
+        require(tx.inputs.length == 3 && (tx.outputs.length == 3 || tx.outputs.length == 4));
+        require(launchCat != quoteCat);
+        require(tx.inputs[0].tokenCategory == launchCat + 0x01);
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+        require(tx.inputs[0].value == int(baseCarrier) && tx.outputs[0].value == tx.inputs[0].value);
+        require(tx.inputs[1].lockingBytecode == new LockingBytecodeP2SH32(quoteVaultHash));
+        require(tx.outputs[1].lockingBytecode == tx.inputs[1].lockingBytecode);
+        require(tx.inputs[1].value == tx.outputs[1].value);
+
+        bytes inState = tx.inputs[0].nftCommitment;
+        bytes outState = tx.outputs[0].nftCommitment;
+        require(inState.length == 34 && outState.length == 34);
+        require(inState.split(2)[0] == 0x0100);
+        require(outState.split(1)[0] == 0x01);
+        int q0 = int(inState.split(2)[1].split(8)[0]);
+        int c0 = int(inState.split(10)[1].split(8)[0]);
+        int p0 = int(inState.split(18)[1].split(8)[0]);
+        int r0 = int(inState.split(26)[1]);
+        int q1 = int(outState.split(2)[1].split(8)[0]);
+        int c1 = int(outState.split(10)[1].split(8)[0]);
+        int p1 = int(outState.split(18)[1].split(8)[0]);
+        int r1 = int(outState.split(26)[1]);
+        require(min(min(q0, c0), min(p0, r0)) >= 0);
+        require(min(min(q1, c1), min(p1, r1)) >= 0);
+        require(q0 < int(quoteThreshold) && q1 <= int(quoteThreshold));
+        if (q1 == int(quoteThreshold)) {
+            require(outState.split(1)[1].split(1)[0] == 0x01);
+        } else {
+            require(outState.split(1)[1].split(1)[0] == 0x00);
+        }
+
+        int held0 = q0 + c0 + p0 + r0;
+        int held1 = q1 + c1 + p1 + r1;
+        require(tx.inputs[1].tokenAmount == held0);
+        if (held0 > 0) require(tx.inputs[1].tokenCategory == quoteCat);
+        require(tx.outputs[1].tokenCategory == quoteCat);
+        require(tx.outputs[1].tokenAmount == held1);
+        int gross = held1 - held0;
+        int feeBps = int(creatorFeeBps) + int(partnerFeeBps) + int(protocolFeeBps);
+        require(gross > 0 && feeBps > 0 && feeBps < 10000);
+        int fee = gross * feeBps / 10000;
+        int creator = fee * int(creatorFeeBps) / feeBps;
+        int partner = fee * int(partnerFeeBps) / feeBps;
+        int protocol = fee - creator - partner;
+        if (int(protocolFeeBps) == 0) {
+            if (int(creatorFeeBps) > 0) creator += protocol;
+            else partner += protocol;
+            protocol = 0;
+        }
+        int net = gross - fee;
+        require(c1 == c0 + creator && p1 == p0 + partner && r1 == r0 + protocol);
+        require(q1 == q0 + net);
+        if (q1 == int(quoteThreshold)) {
+            int previousGross = gross - 1;
+            require(q0 + previousGross - previousGross * feeBps / 10000 < int(quoteThreshold));
+        }
+
+        int b0 = tx.inputs[0].tokenAmount;
+        int b1 = tx.outputs[0].tokenAmount;
+        require(b0 > b1 && b1 >= 0);
+        require(b0 - b1 == (b0 + int(virtualBase)) * net / (q0 + int(virtualQuote) + net));
+        require(tx.inputs[2].tokenCategory == quoteCat);
+        require(tx.inputs[2].tokenAmount >= gross);
+        require(tx.outputs[2].tokenCategory == launchCat);
+        require(tx.outputs[2].tokenAmount == b0 - b1);
+        require(tx.outputs[2].lockingBytecode == tx.inputs[2].lockingBytecode);
+        require(tx.outputs[2].value >= 1000);
+        if (tx.inputs[2].tokenAmount == gross) {
+            require(tx.outputs.length == 3);
+            require(tx.outputs[2].value >= tx.inputs[2].value - 5000);
+        } else {
+            require(tx.outputs.length == 4);
+            require(tx.outputs[3].tokenCategory == quoteCat);
+            require(tx.outputs[3].tokenAmount == tx.inputs[2].tokenAmount - gross);
+            require(tx.outputs[3].lockingBytecode == tx.inputs[2].lockingBytecode);
+            require(tx.outputs[3].value >= 1000);
+            require(tx.outputs[2].value + tx.outputs[3].value >= tx.inputs[2].value - 5000);
+        }
+        require(creatorRecipientHash.length == 32 && partnerRecipientHash.length == 32 && protocolRecipientHash.length == 32);
+    }
+
+    function sell() {
+        require(this.activeInputIndex == 0);
+        require(tx.inputs.length == 3 && tx.outputs.length == 3);
+        require(tx.inputs[0].tokenCategory == launchCat + 0x01);
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+        require(tx.inputs[0].value == int(baseCarrier) && tx.outputs[0].value == tx.inputs[0].value);
+        require(tx.inputs[1].lockingBytecode == new LockingBytecodeP2SH32(quoteVaultHash));
+        require(tx.outputs[1].lockingBytecode == tx.inputs[1].lockingBytecode);
+        require(tx.inputs[1].value == tx.outputs[1].value);
+        bytes inState = tx.inputs[0].nftCommitment;
+        bytes outState = tx.outputs[0].nftCommitment;
+        require(inState.length == 34 && outState.length == 34);
+        require(inState.split(2)[0] == 0x0100 && outState.split(2)[0] == 0x0100);
+        int q0 = int(inState.split(2)[1].split(8)[0]);
+        int c0 = int(inState.split(10)[1].split(8)[0]);
+        int p0 = int(inState.split(18)[1].split(8)[0]);
+        int r0 = int(inState.split(26)[1]);
+        int q1 = int(outState.split(2)[1].split(8)[0]);
+        int c1 = int(outState.split(10)[1].split(8)[0]);
+        int p1 = int(outState.split(18)[1].split(8)[0]);
+        int r1 = int(outState.split(26)[1]);
+        require(min(min(q0, c0), min(p0, r0)) >= 0);
+        require(min(min(q1, c1), min(p1, r1)) >= 0);
+        require(q0 > 0 && q0 < int(quoteThreshold) && q1 >= 0);
+        int held0 = q0 + c0 + p0 + r0;
+        int held1 = q1 + c1 + p1 + r1;
+        require(tx.inputs[1].tokenCategory == quoteCat && tx.inputs[1].tokenAmount == held0);
+        require(tx.outputs[1].tokenAmount == held1);
+        if (held1 > 0) require(tx.outputs[1].tokenCategory == quoteCat);
+        int gross = q0 - q1;
+        int feeBps = int(creatorFeeBps) + int(partnerFeeBps) + int(protocolFeeBps);
+        require(gross > 0 && gross <= q0 && feeBps > 0 && feeBps < 10000);
+        int fee = gross * feeBps / 10000;
+        int creator = fee * int(creatorFeeBps) / feeBps;
+        int partner = fee * int(partnerFeeBps) / feeBps;
+        int protocol = fee - creator - partner;
+        if (int(protocolFeeBps) == 0) {
+            if (int(creatorFeeBps) > 0) creator += protocol;
+            else partner += protocol;
+            protocol = 0;
+        }
+        require(c1 == c0 + creator && p1 == p0 + partner && r1 == r0 + protocol);
+        int b0 = tx.inputs[0].tokenAmount;
+        int b1 = tx.outputs[0].tokenAmount;
+        int baseIn = b1 - b0;
+        require(baseIn > 0 && b0 >= 0);
+        require(tx.inputs[2].tokenCategory == launchCat && tx.inputs[2].tokenAmount == baseIn);
+        require(gross == (q0 + int(virtualQuote)) * baseIn / (b0 + int(virtualBase) + baseIn));
+        require(held0 - held1 == gross - fee);
+        require(tx.outputs[2].tokenCategory == quoteCat);
+        require(tx.outputs[2].tokenAmount == gross - fee);
+        require(tx.outputs[2].lockingBytecode == tx.inputs[2].lockingBytecode);
+        require(tx.outputs[2].value >= 1000 && tx.outputs[2].value >= tx.inputs[2].value - 5000);
+    }
+
+    function claim(int role) {
+        require(this.activeInputIndex == 0);
+        require(tx.inputs.length == 3 && tx.outputs.length == 4);
+        require(tx.inputs[0].tokenCategory == launchCat + 0x01);
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+        require(tx.outputs[0].tokenAmount == tx.inputs[0].tokenAmount);
+        require(tx.inputs[0].value == int(baseCarrier) && tx.outputs[0].value == tx.inputs[0].value);
+        require(tx.inputs[1].lockingBytecode == new LockingBytecodeP2SH32(quoteVaultHash));
+        require(tx.outputs[1].lockingBytecode == tx.inputs[1].lockingBytecode);
+        require(tx.inputs[1].value == tx.outputs[1].value);
+        bytes inState = tx.inputs[0].nftCommitment;
+        bytes outState = tx.outputs[0].nftCommitment;
+        require(inState.length == 34 && outState.length == 34);
+        require(inState.split(2)[0] == outState.split(2)[0]);
+        require(inState.split(1)[0] == 0x01);
+        int q0 = int(inState.split(2)[1].split(8)[0]);
+        int c0 = int(inState.split(10)[1].split(8)[0]);
+        int p0 = int(inState.split(18)[1].split(8)[0]);
+        int r0 = int(inState.split(26)[1]);
+        int q1 = int(outState.split(2)[1].split(8)[0]);
+        int c1 = int(outState.split(10)[1].split(8)[0]);
+        int p1 = int(outState.split(18)[1].split(8)[0]);
+        int r1 = int(outState.split(26)[1]);
+        require(min(min(q0, c0), min(p0, r0)) >= 0);
+        require(min(min(q1, c1), min(p1, r1)) >= 0);
+        require(q0 == q1 && q0 <= int(quoteThreshold));
+        int amount = 0;
+        bytes32 recipientHash = creatorRecipientHash;
+        if (role == 0) {
+            amount = c0;
+            require(c1 == 0 && p1 == p0 && r1 == r0);
+        } else if (role == 1) {
+            amount = p0;
+            recipientHash = partnerRecipientHash;
+            require(c1 == c0 && p1 == 0 && r1 == r0);
+        } else {
+            require(role == 2);
+            amount = r0;
+            recipientHash = protocolRecipientHash;
+            require(c1 == c0 && p1 == p0 && r1 == 0);
+        }
+        require(amount > 0);
+        int held0 = q0 + c0 + p0 + r0;
+        int held1 = q1 + c1 + p1 + r1;
+        require(tx.inputs[1].tokenCategory == quoteCat && tx.inputs[1].tokenAmount == held0);
+        require(tx.outputs[1].tokenAmount == held1);
+        if (held1 > 0) require(tx.outputs[1].tokenCategory == quoteCat);
+        require(held0 - held1 == amount);
+        require(tx.outputs[2].tokenCategory == quoteCat && tx.outputs[2].tokenAmount == amount);
+        require(sha256(tx.outputs[2].lockingBytecode) == recipientHash);
+        require(tx.outputs[2].value >= 1000);
+        require(tx.outputs[3].lockingBytecode == tx.inputs[2].lockingBytecode);
+        require(tx.outputs[3].value >= 546);
+        require(tx.outputs[2].value + tx.outputs[3].value >= tx.inputs[2].value - 5000);
+    }
+}

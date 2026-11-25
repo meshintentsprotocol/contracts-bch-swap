@@ -1,0 +1,31 @@
+pragma cashscript ^0.14.0;
+
+// Mesh Blaze discrete per-tranche allocation vesting covenant.
+// Holds launch FT and BCH carrier for a committed allocation schedule.
+// Once unlockHeight is reached, tokens are permissionlessly released
+// to the pre-committed recipient script hash with carrier preserved.
+contract MeshBlazeVestingV1(
+    bytes32 tokenCat,
+    bytes32 recipientScriptHash,
+    bytes8 tokenAmount,
+    bytes4 unlockHeight
+) {
+    function release() {
+        int i = this.activeInputIndex;
+
+        // Verify input matches contract tranche terms (FT only, no NFT capability)
+        require(tx.inputs[i].tokenCategory == tokenCat);
+        require(tx.inputs[i].tokenAmount == int(tokenAmount));
+
+        // Enforce locktime expiration by block height
+        require(tx.time >= int(unlockHeight));
+
+        // Corresponding output delivers tokens and carrier to committed recipient
+        require(tx.outputs[i].tokenCategory == tokenCat);
+        require(tx.outputs[i].tokenAmount == int(tokenAmount));
+        require(sha256(tx.outputs[i].lockingBytecode) == recipientScriptHash);
+
+        // Carrier satoshis cannot be siphoned for miner fees
+        require(tx.outputs[i].value >= tx.inputs[i].value);
+    }
+}

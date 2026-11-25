@@ -1,0 +1,40 @@
+pragma cashscript ^0.14.0;
+
+// BCH-only fee accumulator for one immutable recipient. Any trade may add BCH
+// at the same input/output index. Anyone may trigger a whole-balance claim to
+// the committed recipient once the accrued amount can form a standard output.
+// This covenant does not by itself require a market trade to pay a fee; the
+// paired market bin must enforce the collector deltas for every fill.
+contract MeshBlazeBchFeeCollectorV1(bytes32 recipientScriptHash, bytes8 carrier) {
+    function accrue() {
+        int i = this.activeInputIndex;
+        require(int(carrier) >= 1000);
+        require(tx.inputs[i].tokenCategory == 0x && tx.inputs[i].nftCommitment == 0x);
+        require(tx.outputs[i].tokenCategory == 0x && tx.outputs[i].nftCommitment == 0x);
+        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+        require(tx.inputs[i].value >= int(carrier));
+        require(tx.outputs[i].value >= tx.inputs[i].value);
+    }
+
+    function claim() {
+        require(this.activeInputIndex == 0 && tx.inputs.length == 2 && tx.outputs.length == 3);
+        require(int(carrier) >= 1000);
+        require(tx.inputs[0].tokenCategory == 0x && tx.inputs[0].nftCommitment == 0x);
+        require(tx.inputs[1].tokenCategory == 0x && tx.inputs[1].nftCommitment == 0x);
+        require(tx.outputs[0].tokenCategory == 0x && tx.outputs[0].nftCommitment == 0x);
+        require(tx.outputs[1].tokenCategory == 0x && tx.outputs[1].nftCommitment == 0x);
+        require(tx.outputs[2].tokenCategory == 0x && tx.outputs[2].nftCommitment == 0x);
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+        require(tx.outputs[0].value == int(carrier));
+        int amount = tx.inputs[0].value - int(carrier);
+        require(amount > 0);
+        // The sponsor may add BCH to make a tiny final claim dust-safe.
+        // All accrued BCH still leaves the collector for the recipient.
+        require(tx.outputs[1].value >= 546 && tx.outputs[1].value >= amount);
+        int sponsorTopUp = tx.outputs[1].value - amount;
+        require(sha256(tx.outputs[1].lockingBytecode) == recipientScriptHash);
+        require(tx.outputs[2].lockingBytecode == tx.inputs[1].lockingBytecode);
+        require(tx.outputs[2].value >= 546);
+        require(tx.outputs[2].value >= tx.inputs[1].value - sponsorTopUp - 5000);
+    }
+}

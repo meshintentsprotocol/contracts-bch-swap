@@ -1,0 +1,69 @@
+# Chipnet end-to-end matrix and run log
+
+Status: BCH-quoted E1 confirmed on chipnet on 2026-11-17; E2-E7 remain release gates. See [the transaction and verifier record](08-chipnet-e1-evidence.md).
+
+## Required lifecycle matrix
+
+| Run | On-chain sequence | Proof to retain |
+|---|---|---|
+| E1 BCH DBC | seed → FT genesis → curve funding → buy → sell → final partial buy/refund → completion → V4 graduation → post-grad swap → three fee claims | txids, decoded outputs, reserve/fee ledger, ≥90% lock scripts |
+| E2 token quote DBC | seed → FT genesis → paired vault funding → two-sided trades → final partial buy/refund → paired completion → direct token/token graduation → swap → fee claims | both vault input/output pairs, categories, sats carriers, market depth |
+| E3 Presale success | funded sale → deposits → success → buyer claims → creator proceeds or precommitted handoff | receipt consumption, allocations, unsold supply |
+| E4 Presale failure | funded sale → deposits → failure → every quote refund → creator recovers unallocated base | exact quote and fee refunds, no double claim |
+| E5 Alpha fixed | pre-public fixed-price deposits → allocation settlement → claims/refunds → public activation | committed price, allocated supply, timing |
+| E6 Alpha buy | pre-public deposits → guarded DBC buys → pro-rata claims and unused quote refunds → public activation | price bound, actual used quote, expiry behavior |
+| E7 adversarial | malformed companion, category, output, fee, refund, lock or claim transactions | rejected VM reason and no accepted chipnet tx |
+
+For every run, record network height, artifact and manifest hashes, source revision, exact txids, explorer links, decoded transaction diffs and balances. Use isolated funded chipnet wallets; never log WIFs. Do not reuse `wallet.json` in committed fixtures.
+
+## E1 funding gate
+
+The offline calculator `v4/blaze/src/graduation/chipnet-budget.ts` totals the curve's gross BCH buy budget (including its configured curve trading fee), curve carrier, one or two market-bin carriers, three collector carriers, a separate creator position NFT carrier, and operator-chosen fee and trade-float reserves. It reports the threshold quote and minimum permanently locked quote separately; locked quote is already inside the gross buy budget and must not be added again. The state archive reuses the curve carrier. Market collectors retain their carriers during claims; the archive carrier has no spend path. The locked bin has no owner principal withdrawal, although swaps can change its BCH balance.
+
+For the local 500,003-sat threshold and 90% lock fixture, the calculator gives 505,054 sats for gross buys, 1,000 curve carrier, 2,000 bin carriers, 3,000 collector carriers, 1,000 creator NFT carrier, 100,000 fee reserve, and 100,000 trade float: **712,054 sats (0.00712054 tBCH)**. At least 450,003 sats of the 500,003-sat graduated quote enters the permanently locked bin. A **0.01 tBCH** isolated wallet target leaves 287,946 sats beyond this estimate. This assumes one launch and does not fund additional launches, presale, Alpha, token-quote issuance, faucet retries, or arbitrary trading volume. A sell may require more BCH in the bin than a chosen test trade provides; set the trade float from the actual signed sequence.
+
+Before broadcasting, construct and sign every E1 transaction offline, measure its serialized size and actual fee, verify each output against the committed scripts, and recompute the wallet's maximum simultaneous funding need. Fund the isolated chipnet wallet only after that check. Record source UTXOs and balances without exposing the key. The calculator is a planning bound, not a relay-policy or live-balance proof.
+
+The BCH V2 graduation path now has a signing-independent output plan and a separate signed transaction builder (`v4/blaze/src/graduation/bch-signed-handoff.ts`). Its local 90% fixture serializes to **3,302 bytes** with a **4,000-sat** fee (about 1.21 sat/byte), below the covenant's 5,000-sat fee cap. Both 90% and 100% signed paths pass the BCH VM, and a fee below the signed size is rejected. The sample uses synthetic UTXOs and test keys; the final chipnet transaction must be built from confirmed UTXOs and rechecked before broadcast.
+
+The linked local E1 fixture starts at an empty curve state, signs an opening buy, sells the resulting FT, consolidates the buyer's BCH change and sell proceeds, signs a terminal buy with excess refund, claims all three curve fee balances, graduates the resulting live state, buys from the locked fee bin, and claims all three market fee balances with sponsor top-ups where needed. Every transaction passes the BCH VM in sequence, with curve, token, collector and wallet successor outpoints and amounts taken from the prior transaction. The market is set to 2/1 bid and 21/10 ask around the reachable terminal curve price. Sample sizes: opening buy **3,084 B**, sell **3,011 B**, terminal buy **3,084 B**, graduation **3,302 B**, market buy **2,273 B**. The buyer/sponsor chain begins with one synthetic **700,000-sat** wallet UTXO and ends with **118,270 sats** in that wallet after the market fee claims. The separate position and launch token genesis transactions were subsequently linked and confirmed in the [public E1 run](08-chipnet-e1-evidence.md).
+
+Read-only connectivity check on 2026-11-17: CashScript's chipnet Electrum provider returned height **335,151**. The public recipient address in the prior V4 position-test state (`bchtest:zpmnrn7s7c426vr849r3rs4euxsk3n2ghgkrfhvfx7`) had **99,044 BCH-only sats** in one UTXO and no token UTXOs. This address has not been designated as the isolated Blaze E1 funder; its observed balance is 900,956 sats below the 0.01 tBCH target. No key was loaded and no transaction was broadcast in this check.
+
+A later read-only run of `v4/blaze/tools/chipnet-readiness.ts` derived the existing chipnet test funder's public address from the locally configured key without displaying the key. At height **335,165**, `bchtest:qqn9dyqwpn00nck874ncgr33gfpdzs3sts25n72dev` had **12,524,312 BCH-only sats** across 68 UTXOs (largest **3,718,102 sats**) and 149 token UTXOs. This clears the 1,000,000-sat funding target in aggregate and in one UTXO. The command only queried Electrum; no transaction was signed or sent. A dedicated Blaze wallet, source-UTXO selection and a complete chipnet plan still precede broadcast.
+
+`v4/blaze/tools/chipnet-e1-plan.ts` now selects two separate live BCH-only UTXOs and creates a signed **offline** plan at `v4/data/chipnet/blaze-e1/genesis-plan.json` (gitignored). The 2026-11-17 run passed the BCH VM for both seeds, creator position genesis and launch-token genesis. It derived launch category `a724ecf34e5dbc9d8e7c85d02d8fa0f9a221eded0537123639efa4dc571ea671`, creator position category `540b03440efab94e2f714f87717df9178113b9c8c9a921d6ccb7aa3cf8b0ae9a`, manifest hash `9f167434132331f120fb23d845991511e77268476272fe63ad3e613e47bf7c7c`, and bundle hash `5bf61a0df4f8e7da3eed1eec94c206b87b0316d9fde5c5e8e1b50b44325613c0`. Signed sizes are 185/336 bytes for position seed/genesis and 185/399 bytes for launch seed/genesis. The plan uses one test funder script for all three fee roles and has no BCMR URL; it is a chipnet laboratory fixture, not the public launch configuration. No raw transaction was sent.
+
+The independent `v4/blaze/tools/chipnet-e1-check.ts` re-read the saved plan at height **335,176**, found both BCH-only source UTXOs unspent, verified all four signed transactions in the BCH VM, rebuilt the committed contracts, and checked both genesis hash outputs. It returned `READY_OFFLINE_ONLY`. BCH policy permits multiple `OP_RETURN` outputs subject to a combined 223-byte script limit; the `MBLZ` and `MBND` outputs together are below that limit. This policy check does not replace a live chipnet mempool acceptance test.
+
+## Existing baseline
+
+The repo also has `v4/tools/chipnet-position-genesis.ts` for an earlier V4 position-NFT seed/genesis and `v4/tools/resolve-position-metadata.ts` for read-only chain/BCMR verification. These are separate from the Blaze E1 lifecycle.
+
+## Run log
+
+| Check | Result | Evidence |
+|---|---|---|
+| Branch | `bchblaze` | `git branch --show-current` |
+| Initial worktree | Clean | `git status --short` produced no paths |
+| `npm.cmd test` in `v4` | **350 passed, 0 failed** outside sandbox | Initial sandbox run hit Node 24.11.1 `os.userInfo()` ENOMEM before assertions; rerun completed every V4 suite with exit 0 |
+| Live chipnet read-only check | Chain and metadata assertions passed; process exit 1 | `resolve-position-metadata.ts` verified category `9b9b2ed9…10ad130`, genesis `1a64e4fc…d56b81`, authchain, BCMR hash, unspent identity output and NFT parse, then Node printed Windows libuv `UV_HANDLE_CLOSING` assertion after `resolved like a wallet: OK` |
+| Blaze E1 | **Confirmed: 15 chipnet transactions, minimum 9 confirmations at height 335370** | [Public txids and independent verifier](08-chipnet-e1-evidence.md); all 15 transactions passed BCH 2026 VM against public parent outputs; 49,000 sats total fees; final locked, owned, archive and collector UTXOs found |
+| Blaze E2–E7 | Open | Token-quote lifecycle, Presale, Alpha and adversarial chipnet runs remain release gates |
+| Blaze genesis offline VM | **15 passed, 0 failed** | `v4/blaze/test/genesis.test.ts` compiled with the pinned V4 TypeScript toolchain and ran under Node; signed seed and fixed-supply genesis, including same-category mutable state NFT, passed BCH VM; minting NFT rejected by verifier |
+| Blaze manifest offline | **14 passed, 0 failed** | `v4/blaze/test/manifest.test.ts` verifies deterministic binary encoding, golden hash, allocation and NFT commitment, fee/route and paired quote-vault sensitivity, 90% lock setting and genesis `MBLZ` hash output |
+| Blaze BCH curve reference math | **8 passed, 0 failed** | `v4/blaze/test/curve-math.test.ts` checks buy/sell, fee and reserve conservation, partial final fill/refund, no virtual quote withdrawal and state commitment encoding |
+| Blaze hosted BCMR verification | **4 passed, 0 failed** | `v4/blaze/test/metadata.test.ts` checks exact hosted bytes, changed bytes, HTTP failure and HTTPS requirement with stub responses |
+| Blaze BCH curve prototype VM | **23 passed, 0 failed** | Compiled `v4/blaze/contracts/curve/MeshBlazeBchCurveV1.cash`; buy/sell, three fee claims, terminal refund, seller payout and fee-cap attacks tested in BCH VM; no graduation or chipnet lifecycle yet |
+| Blaze BCH constructor and plans | **16 passed, 0 failed** | `v4/blaze/test/curve-contract.test.ts` reconstructs the committed script; manifest-derived buy, sell and claim plans pass BCH VM; unsafe reserve/fee products, diverted proceeds, altered recipients, slippage and insufficient funding are rejected |
+| Blaze BCH VM cost samples | Measured locally | Buy 1,913 bytes and 136,571 op cost; sell 1,840/136,354; terminal buy 1,913/136,650; fee claim 1,700/136,256. All below VM maxima in this harness; chipnet relay and worst-case limits remain untested. |
+| Blaze token quote-vault VM | **5 passed, 0 failed** | Compiled buy-side `MeshBlazeTokenQuoteVaultV1.cash`; initial quote vault buy and three tampered spends tested. Sample 1,088 bytes, 37,365/370,400 op cost for quote-vault input. Chipnet lifecycle absent. |
+| Blaze paired token-quote VM and plan | **25 passed, 0 failed** | Both `MeshBlazeTokenBaseVaultV1.cash` and `MeshBlazeTokenQuoteVaultV1.cash` spend atomically for buy, sell and whole-balance fee claims; manifest-derived unsigned plans pass the BCH VM. Exact-funded and terminal refund buys pass; wrong price, fee split, script, category, refund, payout and ledger fail. Sample buy 3,420 bytes, base 155,495/1,440,800 and quote 103,366/898,400 op cost; sell and claim samples are in the [technical note](../v4/blaze/docs/token-quote-v1.md). Graduation and chipnet absent. |
+| Blaze BCH graduation prototype VM | **20 passed, 0 failed** | V2 funds the fee-bearing locked bin and three collectors atomically from a completed BCH curve state. The linked local fixture signs opening buy, sell, terminal buy, three curve claims and graduation from reachable state, then spends the locked bin and claims three market fee balances. The separate 100% lock path also passes. OP_0 archive spend rejection and creator position NFT genesis pass local VM verification; the 90% archive and handoff were subsequently confirmed in E1. |
+| Blaze BCH market fee collector and locked bin VM | **9 collector VM; 13 bin VM, 0 failed** | Collector supports BCH accrual and whole-balance claims. Locked bin buy/sell enforces exact LP/creator/partner/protocol fee allocation through three paired collector inputs. Creator-owned fee bin has 5 VM checks, including exit with claims preserved. Sample locked-bin transactions are 2,271/2,200 bytes; no manifest reconstruction, multi-bin or chipnet market lifecycle yet. |
+| Blaze typecheck | Passed | `npm.cmd run typecheck` in `v4/` includes `v4/blaze/**/*.ts` |
+
+The Node errors are execution environment/process-shutdown issues; the completed V4 suite itself passed. The chipnet verifier's nonzero exit remains an automation defect to fix before using it as a CI gate, even though every printed chain assertion passed. The Blaze genesis VM test is offline and does not prove a Blaze E2E lifecycle.
+## E2 token/token status, 2026-11-17
+
+The [E2 signed local VM lifecycle](09-local-e2-evidence.md) covers 22 linked transactions and conserves both token supplies. E2 has **not** been broadcast to chipnet; this document's confirmed E1 BCH-quote run does not establish token/token relay acceptance or confirmation. The next E2 run must retain every txid, actual UTXO and fee, confirmation depth, final market reserves and all creator/partner/protocol claims.

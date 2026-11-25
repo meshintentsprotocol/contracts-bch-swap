@@ -1,0 +1,144 @@
+pragma cashscript ^0.14.0;
+
+// Mesh Blaze Presale Covenant V1.
+// Supports bounded raise with soft and hard caps, discrete authenticated
+// participant receipts, and mutually exclusive permissionless finalize
+// into SUCCESS (token distribution) or FAILED (exact quote refund).
+//
+// State commitment (17 bytes):
+//   - stage: 1 byte (0 = OPEN, 1 = SUCCESS, 2 = FAILED)
+//   - collectedQuote: 8 bytes le
+//   - tokensRemaining: 8 bytes le
+contract MeshBlazePresaleV1(
+    bytes32 tokenCat,
+    bytes8 totalSaleTokens,
+    bytes8 minRaiseQuote,
+    bytes8 maxRaiseQuote,
+    bytes4 openHeight,
+    bytes4 closeHeight,
+    bytes32 creatorScriptHash,
+    bytes32 successDestinationHash
+) {
+    // Contributor deposits quote during the open sale window
+    function contribute(bytes8 contributionAmount) {
+        int i = this.activeInputIndex;
+        require(i == 0);
+        bytes inState = tx.inputs[i].nftCommitment;
+        require(inState.length == 17);
+        require(inState.split(1)[0] == 0x00); // Must be in OPEN stage
+
+        require(tx.time >= int(openHeight));
+
+        int collected = int(inState.split(1)[1].split(8)[0]);
+        int tokensLeft = int(inState.split(9)[1]);
+        int contrib = int(contributionAmount);
+        require(contrib > 0);
+        require(collected + contrib <= int(maxRaiseQuote));
+
+        // Next presale state maintains token balance and increases collected quote
+        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+        require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
+        require(tx.outputs[i].tokenAmount == tokensLeft);
+        require(tx.outputs[i].nftCommitment == 0x00 + toPaddedBytes(collected + contrib, 8) + toPaddedBytes(tokensLeft, 8));
+        require(tx.outputs[i].value >= tx.inputs[i].value + contrib);
+    }
+
+    // Finalize the sale once the close height arrives (or hard cap reached)
+    function finalize() {
+        int i = this.activeInputIndex;
+        require(i == 0);
+        bytes inState = tx.inputs[i].nftCommitment;
+        require(inState.length == 17);
+        require(inState.split(1)[0] == 0x00); // Must be in OPEN stage
+
+        int collected = int(inState.split(1)[1].split(8)[0]);
+        int tokensLeft = int(inState.split(9)[1]);
+
+        // Can finalize if deadline passed or hard cap reached
+        if (collected < int(maxRaiseQuote)) {
+            require(tx.time >= int(closeHeight));
+        }
+
+        if (collected >= int(minRaiseQuote)) {
+            // SUCCESS: transition to stage 1 (SUCCESS)
+            // State keeps tokens for distribution; collected quote goes to successDestination
+            require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+            require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
+            require(tx.outputs[i].tokenAmount == tokensLeft);
+            require(tx.outputs[i].nftCommitment == 0x01 + toPaddedBytes(collected, 8) + toPaddedBytes(tokensLeft, 8));
+            require(tx.outputs[i].value >= 1000); // Carrier sats
+
+            // Output 1 sends collected quote to success destination
+            require(sha256(tx.outputs[1].lockingBytecode) == successDestinationHash);
+            require(tx.outputs[1].value >= collected);
+        } else {
+            // FAILED: transition to stage 2 (FAILED)
+            // State keeps collected quote for participant refunds; unsold tokens return to creator
+            require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+            require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
+            require(tx.outputs[i].tokenAmount == 0);
+            require(tx.outputs[i].nftCommitment == 0x02 + toPaddedBytes(collected, 8) + toPaddedBytes(0, 8));
+            require(tx.outputs[i].value >= collected + 1000); // Keeps quote for refunds + carrier
+
+            // Output 1 returns unsold tokens to creator
+            require(sha256(tx.outputs[1].lockingBytecode) == creatorScriptHash);
+            require(tx.outputs[1].tokenCategory == tokenCat);
+            require(tx.outputs[1].tokenAmount == tokensLeft);
+            require(tx.outputs[1].value >= 1000);
+        }
+    }
+
+    // Participant claims their allocated tokens after successful presale
+    function claimTokens(bytes8 contributionAmount, bytes32 participantScriptHash) {
+        int i = this.activeInputIndex;
+        require(i == 0);
+        bytes inState = tx.inputs[i].nftCommitment;
+        require(inState.length == 17);
+        require(inState.split(1)[0] == 0x01); // Must be stage 1 (SUCCESS)
+
+        int collected = int(inState.split(1)[1].split(8)[0]);
+        int tokensLeft = int(inState.split(9)[1]);
+        int contrib = int(contributionAmount);
+        require(contrib > 0 && contrib <= collected);
+
+        // Pro-rata token entitlement: (contrib * totalSaleTokens) / collected
+        int tokenEntitlement = (contrib * int(totalSaleTokens)) / collected;
+        require(tokenEntitlement > 0 && tokenEntitlement <= tokensLeft);
+
+        // Output 0: Next presale state with decremented tokens
+        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+        require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
+        require(tx.outputs[i].tokenAmount == tokensLeft - tokenEntitlement);
+        require(tx.outputs[i].nftCommitment == 0x01 + toPaddedBytes(collected, 8) + toPaddedBytes(tokensLeft - tokenEntitlement, 8));
+        require(tx.outputs[i].value >= 1000);
+
+        // Output 1: Delivers tokens to participant
+        require(sha256(tx.outputs[1].lockingBytecode) == participantScriptHash);
+        require(tx.outputs[1].tokenCategory == tokenCat);
+        require(tx.outputs[1].tokenAmount == tokenEntitlement);
+        require(tx.outputs[1].value >= 1000);
+    }
+
+    // Participant claims their exact refund after failed presale
+    function refund(bytes8 contributionAmount, bytes32 participantScriptHash) {
+        int i = this.activeInputIndex;
+        require(i == 0);
+        bytes inState = tx.inputs[i].nftCommitment;
+        require(inState.length == 17);
+        require(inState.split(1)[0] == 0x02); // Must be stage 2 (FAILED)
+
+        int quoteRemaining = int(inState.split(1)[1].split(8)[0]);
+        int contrib = int(contributionAmount);
+        require(contrib > 0 && contrib <= quoteRemaining);
+
+        // Output 0: Next presale state with decremented quote reserve
+        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+        require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
+        require(tx.outputs[i].nftCommitment == 0x02 + toPaddedBytes(quoteRemaining - contrib, 8) + toPaddedBytes(0, 8));
+        require(tx.outputs[i].value >= quoteRemaining - contrib + 1000);
+
+        // Output 1: Delivers exact quote refund to participant
+        require(sha256(tx.outputs[1].lockingBytecode) == participantScriptHash);
+        require(tx.outputs[1].value >= contrib);
+    }
+}

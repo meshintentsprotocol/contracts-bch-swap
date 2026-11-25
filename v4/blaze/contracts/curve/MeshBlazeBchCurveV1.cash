@@ -1,0 +1,191 @@
+pragma cashscript ^0.14.0;
+
+// Mesh Blaze BCH-quote curve prototype. One UTXO holds launch FT plus a mutable
+// NFT of the SAME category. Its 34-byte commitment stores real BCH reserve and
+// accrued fee rights. The NFT is not minting authority.
+//
+// Stage 0 trades; stage 1 is complete. There is deliberately no owner exit.
+// Graduation MUST be added before a
+// full launch is considered usable. Arithmetic is bounded by VM tests.
+contract MeshBlazeBchCurveV1(
+    bytes32 tokenCat,
+    bytes8 virtualBase,
+    bytes8 virtualQuote,
+    bytes8 quoteThreshold,
+    bytes8 carrier,
+    bytes2 creatorFeeBps,
+    bytes2 partnerFeeBps,
+    bytes2 protocolFeeBps,
+    bytes32 creatorRecipientHash,
+    bytes32 partnerRecipientHash,
+    bytes32 protocolRecipientHash
+) {
+    function buy() {
+        int i = this.activeInputIndex;
+        require(i == 0 && tx.inputs.length == 2 && tx.outputs.length == 3);
+        bytes inState = tx.inputs[i].nftCommitment;
+        bytes outState = tx.outputs[i].nftCommitment;
+        require(inState.length == 34 && outState.length == 34);
+        require(inState.split(2)[0] == 0x0100);
+        require(outState.split(1)[0] == 0x01);
+        require(tx.inputs[i].tokenCategory == tokenCat + 0x01);
+        require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
+        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+        require(int(virtualBase) > 0 && int(virtualQuote) > 0 && int(quoteThreshold) > 0);
+
+        int q0 = int(inState.split(2)[1].split(8)[0]);
+        int c0 = int(inState.split(10)[1].split(8)[0]);
+        int p0 = int(inState.split(18)[1].split(8)[0]);
+        int r0 = int(inState.split(26)[1]);
+        int q1 = int(outState.split(2)[1].split(8)[0]);
+        int c1 = int(outState.split(10)[1].split(8)[0]);
+        int p1 = int(outState.split(18)[1].split(8)[0]);
+        int r1 = int(outState.split(26)[1]);
+        require(min(min(q0, c0), min(p0, r0)) >= 0);
+        require(min(min(q1, c1), min(p1, r1)) >= 0);
+        require(q0 < int(quoteThreshold) && q1 <= int(quoteThreshold));
+        if (q1 == int(quoteThreshold)) {
+            require(outState.split(1)[1].split(1)[0] == 0x01);
+        } else {
+            require(outState.split(1)[1].split(1)[0] == 0x00);
+        }
+        require(tx.inputs[i].value == int(carrier) + q0 + c0 + p0 + r0);
+        require(tx.outputs[i].value == int(carrier) + q1 + c1 + p1 + r1);
+        int b0 = tx.inputs[i].tokenAmount;
+        int b1 = tx.outputs[i].tokenAmount;
+        require(b0 > b1 && b1 >= 0);
+        require(tx.outputs[1].tokenCategory == tokenCat);
+        require(tx.outputs[1].tokenAmount == b0 - b1);
+        require(tx.outputs[1].lockingBytecode == tx.inputs[1].lockingBytecode);
+        require(tx.outputs[1].value >= 546);
+        require(tx.outputs[2].lockingBytecode == tx.inputs[1].lockingBytecode);
+
+        int gross = tx.outputs[i].value - tx.inputs[i].value;
+        int feeBps = int(creatorFeeBps) + int(partnerFeeBps) + int(protocolFeeBps);
+        require(gross > 0 && feeBps > 0 && feeBps < 10000);
+        int fee = gross * feeBps / 10000;
+        int creator = fee * int(creatorFeeBps) / feeBps;
+        int partner = fee * int(partnerFeeBps) / feeBps;
+        int protocol = fee - creator - partner;
+        if (int(protocolFeeBps) == 0) {
+            if (int(creatorFeeBps) > 0) {
+                creator += protocol;
+            } else {
+                partner += protocol;
+            }
+            protocol = 0;
+        }
+        int net = gross - fee;
+        require(c1 == c0 + creator && p1 == p0 + partner && r1 == r0 + protocol);
+        require(q1 == q0 + net);
+        if (q1 == int(quoteThreshold)) {
+            int previousGross = gross - 1;
+            require(q0 + previousGross - previousGross * feeBps / 10000 < int(quoteThreshold));
+        }
+        // The buyer's change output keeps every satoshi beyond the used gross,
+        // token carrier and a bounded network fee under the buyer's script.
+        require(tx.outputs[2].value >= tx.inputs[1].value - gross - tx.outputs[1].value - 5000);
+        require(b0 - b1 == (b0 + int(virtualBase)) * net / (q0 + int(virtualQuote) + net));
+    }
+
+    function sell() {
+        int i = this.activeInputIndex;
+        require(i == 0 && tx.inputs.length == 2 && tx.outputs.length == 2);
+        bytes inState = tx.inputs[i].nftCommitment;
+        bytes outState = tx.outputs[i].nftCommitment;
+        require(inState.length == 34 && outState.length == 34);
+        require(inState.split(2)[0] == 0x0100 && outState.split(2)[0] == 0x0100);
+        require(tx.inputs[i].tokenCategory == tokenCat + 0x01);
+        require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
+        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+        require(int(virtualBase) > 0 && int(virtualQuote) > 0 && int(quoteThreshold) > 0);
+
+        int q0 = int(inState.split(2)[1].split(8)[0]);
+        int c0 = int(inState.split(10)[1].split(8)[0]);
+        int p0 = int(inState.split(18)[1].split(8)[0]);
+        int r0 = int(inState.split(26)[1]);
+        int q1 = int(outState.split(2)[1].split(8)[0]);
+        int c1 = int(outState.split(10)[1].split(8)[0]);
+        int p1 = int(outState.split(18)[1].split(8)[0]);
+        int r1 = int(outState.split(26)[1]);
+        require(min(min(q0, c0), min(p0, r0)) >= 0);
+        require(min(min(q1, c1), min(p1, r1)) >= 0);
+        require(q0 < int(quoteThreshold));
+        require(tx.inputs[i].value == int(carrier) + q0 + c0 + p0 + r0);
+        require(tx.outputs[i].value == int(carrier) + q1 + c1 + p1 + r1);
+        int b0 = tx.inputs[i].tokenAmount;
+        int b1 = tx.outputs[i].tokenAmount;
+        require(b1 > b0 && b0 >= 0);
+        require(tx.inputs[1].tokenCategory == tokenCat);
+        require(tx.inputs[1].tokenAmount == b1 - b0);
+        require(tx.outputs[1].lockingBytecode == tx.inputs[1].lockingBytecode);
+
+        int gross = q0 - q1;
+        int feeBps = int(creatorFeeBps) + int(partnerFeeBps) + int(protocolFeeBps);
+        require(gross > 0 && gross <= q0 && feeBps > 0 && feeBps < 10000);
+        int fee = gross * feeBps / 10000;
+        int creator = fee * int(creatorFeeBps) / feeBps;
+        int partner = fee * int(partnerFeeBps) / feeBps;
+        int protocol = fee - creator - partner;
+        if (int(protocolFeeBps) == 0) {
+            if (int(creatorFeeBps) > 0) {
+                creator += protocol;
+            } else {
+                partner += protocol;
+            }
+            protocol = 0;
+        }
+        require(c1 == c0 + creator && p1 == p0 + partner && r1 == r0 + protocol);
+        require(tx.inputs[i].value - tx.outputs[i].value == gross - fee);
+        require(tx.outputs[1].value >= tx.inputs[1].value + gross - fee - 5000);
+        require(gross == (q0 + int(virtualQuote)) * (b1 - b0) / (b0 + int(virtualBase) + (b1 - b0)));
+    }
+
+    // Anyone may submit a claim. The immutable constructor hashes bind the
+    // payout scripts; the state NFT carries the balance consumed by this claim.
+    function claim(int role) {
+        int i = this.activeInputIndex;
+        bytes inState = tx.inputs[i].nftCommitment;
+        bytes outState = tx.outputs[i].nftCommitment;
+        require(inState.length == 34 && outState.length == 34);
+        require(inState.split(1)[0] == 0x01 && outState.split(2)[0] == inState.split(2)[0]);
+        require(tx.inputs[i].tokenCategory == tokenCat + 0x01);
+        require(tx.outputs[i].tokenCategory == tx.inputs[i].tokenCategory);
+        require(tx.outputs[i].lockingBytecode == tx.inputs[i].lockingBytecode);
+        require(tx.outputs[i].tokenAmount == tx.inputs[i].tokenAmount);
+
+        int q0 = int(inState.split(2)[1].split(8)[0]);
+        int c0 = int(inState.split(10)[1].split(8)[0]);
+        int p0 = int(inState.split(18)[1].split(8)[0]);
+        int r0 = int(inState.split(26)[1]);
+        int q1 = int(outState.split(2)[1].split(8)[0]);
+        int c1 = int(outState.split(10)[1].split(8)[0]);
+        int p1 = int(outState.split(18)[1].split(8)[0]);
+        int r1 = int(outState.split(26)[1]);
+        require(min(min(q0, c0), min(p0, r0)) >= 0);
+        require(min(min(q1, c1), min(p1, r1)) >= 0);
+        require(q0 == q1 && q0 <= int(quoteThreshold));
+        require(tx.inputs[i].value == int(carrier) + q0 + c0 + p0 + r0);
+        require(tx.outputs[i].value == int(carrier) + q1 + c1 + p1 + r1);
+
+        int claimAmount = 0;
+        bytes32 recipientHash = creatorRecipientHash;
+        if (role == 0) {
+            claimAmount = c0;
+            require(c1 == 0 && p1 == p0 && r1 == r0);
+        } else if (role == 1) {
+            claimAmount = p0;
+            recipientHash = partnerRecipientHash;
+            require(c1 == c0 && p1 == 0 && r1 == r0);
+        } else {
+            require(role == 2);
+            claimAmount = r0;
+            recipientHash = protocolRecipientHash;
+            require(c1 == c0 && p1 == p0 && r1 == 0);
+        }
+        require(claimAmount >= 1000);
+        require(tx.inputs[i].value - tx.outputs[i].value == claimAmount);
+        require(tx.outputs[i + 1].value == claimAmount);
+        require(sha256(tx.outputs[i + 1].lockingBytecode) == recipientHash);
+    }
+}

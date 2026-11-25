@@ -1,0 +1,27 @@
+{
+  "contractName": "MeshBlazeStateArchiveV1",
+  "constructorInputs": [],
+  "abi": [
+    { "name": "archive", "inputs": [] }
+  ],
+  "bytecode": "OP_0",
+  "source": "pragma cashscript ^0.14.0;\n\n// Permanent destination for the unique launch-curve state NFT at graduation.\n// The only ABI path always fails. A valid spend of a P2SH32 output requires\n// this exact redeem script, so no creator, keeper or protocol key can exit.\ncontract MeshBlazeStateArchiveV1() {\n    function archive() {\n        require(false);\n    }\n}\n",
+  "fingerprint": "4ae81572f06e1b88fd5ced7a1a000945432e83e1551e6f721ee9c00b8cc33260",
+  "debug": {
+    "bytecode": "00",
+    "sourceMap": "8:8:8:23:1",
+    "logs": [],
+    "requires": [
+      { "ip": 1, "line": 8 }
+    ]
+  },
+  "compiler": {
+    "name": "cashc",
+    "version": "0.14.0",
+    "options": {
+      "enforceFunctionParameterTypes": true,
+      "enforceLocktimeGuard": true
+    }
+  },
+  "updatedAt": "2026-11-17T09:20:46.200Z"
+}
